@@ -1,0 +1,59 @@
+[project]
+name = "codereview"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "click>=8.3.1",
+    "litellm>=1.82.6",
+    "python-dotenv>=1.2.2",
+    "requests>=2.33.0",
+    "rich>=14.3.3",
+]
+
+[dependency-groups]
+dev = [
+    "bandit>=1.9.4",
+    "mypy>=1.19.1",
+    "pylint>=4.0.5",
+    "pyright>=1.1.408",
+    "pytest>=9.0.2",
+    "pytest-asyncio>=1.3.0",
+    "pytest-cov>=7.1.0",
+    "pytest-mock>=3.15.1",
+    "responses>=0.26.0",
+    "ruff>=0.15.8",
+    "semgrep>=1.86.0",
+    "types-requests>=2.33.0.20260327",
+    "vulture>=2.16",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project.scripts]
+codereview = "codereview.cli:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+
+[tool.ruff.lint]
+select = [
+    "E", "F", "W", "I", "N", "UP", "B", "A", "C4", "SIM", "PTH"
+]
+ignore = []
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.pylint.messages_control]
+disable = [
+    "duplicate-code",
+    "too-many-locals",
+]

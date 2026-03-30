@@ -1,0 +1,9 @@
+The following code has a linter error.
+File: {file_path}
+Linter: {linter_name} (Code: {error_code})
+Message: {message}
+
+Code snippet with context:
+```python
+{snippet_context}
+```
