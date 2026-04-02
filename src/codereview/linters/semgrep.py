@@ -11,10 +11,7 @@ from codereview.linters.result import LinterResult
 class SemgrepLinter(BaseLinter):
     """Linter implementation for Semgrep."""
 
-    @property
-    def name(self) -> str:
-        """Return the linter name."""
-        return "Semgrep"
+    name = "Semgrep"
 
     async def run(self, target: Path) -> list[LinterResult]:
         """Run Semgrep on the target and parse the JSON output."""

@@ -11,10 +11,7 @@ from codereview.linters.result import LinterResult
 class BanditLinter(BaseLinter):
     """Linter implementation for Bandit (Security scanner)."""
 
-    @property
-    def name(self) -> str:
-        """Return the linter name."""
-        return "Bandit"
+    name = "Bandit"
 
     async def run(self, target: Path) -> list[LinterResult]:
         """Run Bandit on the target and parse the JSON output."""

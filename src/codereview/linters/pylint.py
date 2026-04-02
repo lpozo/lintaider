@@ -11,10 +11,7 @@ from codereview.linters.result import LinterResult
 class PylintLinter(BaseLinter):
     """Linter implementation for Pylint."""
 
-    @property
-    def name(self) -> str:
-        """Return the linter name."""
-        return "Pylint"
+    name = "Pylint"
 
     async def run(self, target: Path) -> list[LinterResult]:
         """Run Pylint on the target and parse the JSON output."""

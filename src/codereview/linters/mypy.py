@@ -11,10 +11,7 @@ from codereview.linters.result import LinterResult
 class MyPyLinter(BaseLinter):
     """Linter implementation for MyPy (Static type checker)."""
 
-    @property
-    def name(self) -> str:
-        """Return the linter name."""
-        return "MyPy"
+    name = "MyPy"
 
     async def run(self, target: Path) -> list[LinterResult]:
         """Run MyPy on the target and parse the text output."""

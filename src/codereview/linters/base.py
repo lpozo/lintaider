@@ -20,10 +20,7 @@ class AsyncCompletedProcess:
 class BaseLinter(abc.ABC):
     """Abstract base class for all linters."""
 
-    @property
-    @abc.abstractmethod
-    def name(self) -> str:
-        """Name of the linter."""
+    name: str
 
     @abc.abstractmethod
     async def run(self, target: Path) -> list[LinterResult]:

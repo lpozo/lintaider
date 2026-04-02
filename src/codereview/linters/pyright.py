@@ -11,10 +11,7 @@ from codereview.linters.result import LinterResult
 class PyrightLinter(BaseLinter):
     """Linter implementation for Pyright."""
 
-    @property
-    def name(self) -> str:
-        """Return the linter name."""
-        return "Pyright"
+    name = "Pyright"
 
     async def run(self, target: Path) -> list[LinterResult]:
         """Run Pyright on the target and parse the JSON output."""

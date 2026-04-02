@@ -11,10 +11,7 @@ from codereview.linters.result import LinterResult
 class RuffLinter(BaseLinter):
     """Linter implementation for Ruff."""
 
-    @property
-    def name(self) -> str:
-        """Return the linter name."""
-        return "Ruff"
+    name = "Ruff"
 
     async def run(self, target: Path) -> list[LinterResult]:
         """Run Ruff on the target and parse the JSON output."""

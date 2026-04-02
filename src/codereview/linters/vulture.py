@@ -11,10 +11,7 @@ from codereview.linters.result import LinterResult
 class VultureLinter(BaseLinter):
     """Linter implementation for Vulture."""
 
-    @property
-    def name(self) -> str:
-        """Return the linter name."""
-        return "Vulture"
+    name = "Vulture"
 
     async def run(self, target: Path) -> list[LinterResult]:
         """Run Vulture on the target and parse the text output."""

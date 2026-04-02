@@ -191,8 +191,8 @@ def test_cli_init_command(mocker, tmp_path) -> None:
     mocker.patch("codereview.cli.Config.load", return_value=config)
     mock_save = mocker.patch.object(Config, "save")
 
-    # Inputs: Provider, Model, API Key (empty)
-    result = runner.invoke(main, ["init"], input="openai\ngpt-4\n\n")
+    # Inputs: Provider, Model, API Base (empty), API Key (empty)
+    result = runner.invoke(main, ["init"], input="openai\ngpt-4\n\n\n")
 
     assert result.exit_code == 0
     assert "Configuration Saved" in result.output
