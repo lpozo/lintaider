@@ -1,0 +1,112 @@
+[
+  {
+    "file_path": "src/codereview/cli.py",
+    "line_start": 109,
+    "line_end": 109,
+    "col_start": 20,
+    "col_end": 29,
+    "linter_name": "Pylint",
+    "error_code": "C0415",
+    "message": "Import outside toplevel (re)",
+    "snippet_context": " 106 |                 new_line = f'{env_var}=\"{api_key}\"'\n 107 |                 if env_var in content:\n 108 |                     # Replace existing\n 109 |                     import re\n 110 | \n 111 |                     content = re.sub(f'{env_var}=\".*\"', new_line, content)\n 112 |                 else:"
+  },
+  {
+    "file_path": "src/codereview/cli.py",
+    "line_start": 192,
+    "line_end": 192,
+    "col_start": 4,
+    "col_end": 35,
+    "linter_name": "Pylint",
+    "error_code": "C0415",
+    "message": "Import outside toplevel (collections.Counter)",
+    "snippet_context": " 189 |         return\n 190 | \n 191 |     # Per-linter summary\n 192 |     from collections import Counter\n 193 | \n 194 |     counts: Counter[str] = Counter(r.linter_name for r in results)\n 195 |     summary_lines = \"\\n\".join("
+  },
+  {
+    "file_path": "/Users/lpozo/Work/Projects/Python/codereview/src/codereview/cli.py",
+    "line_start": 83,
+    "line_end": 83,
+    "col_start": 17,
+    "col_end": 22,
+    "linter_name": "Pyright",
+    "error_code": "reportOptionalMemberAccess",
+    "message": "[ERROR] \"lower\" is not a known attribute of \"None\"",
+    "snippet_context": "  80 |     )\n  81 | \n  82 |     # API Key handling for Cloud providers\n  83 |     if provider.lower() not in (\"local\", \"ollama\"):\n  84 |         env_map = {\n  85 |             \"openai\": \"OPENAI_API_KEY\",\n  86 |             \"anthropic\": \"ANTHROPIC_API_KEY\","
+  },
+  {
+    "file_path": "/Users/lpozo/Work/Projects/Python/codereview/src/codereview/cli.py",
+    "line_start": 91,
+    "line_end": 91,
+    "col_start": 40,
+    "col_end": 45,
+    "linter_name": "Pyright",
+    "error_code": "reportOptionalMemberAccess",
+    "message": "[ERROR] \"lower\" is not a known attribute of \"None\"",
+    "snippet_context": "  88 |             \"mistral\": \"MISTRAL_API_KEY\",\n  89 |             \"groq\": \"GROQ_API_KEY\",\n  90 |         }\n  91 |         env_var = env_map.get(provider.lower())\n  92 |         if env_var:\n  93 |             current_key = os.getenv(env_var)\n  94 |             api_key = click.prompt("
+  },
+  {
+    "file_path": "/Users/lpozo/Work/Projects/Python/codereview/src/codereview/cli.py",
+    "line_start": 118,
+    "line_end": 118,
+    "col_start": 23,
+    "col_end": 31,
+    "linter_name": "Pyright",
+    "error_code": "reportAttributeAccessIssue",
+    "message": "[ERROR] Cannot assign to attribute \"provider\" for class \"Config\"\n\u00a0\u00a0Type \"str | None\" is not assignable to type \"str\"\n\u00a0\u00a0\u00a0\u00a0\"None\" is not assignable to \"str\"",
+    "snippet_context": " 115 |                 env_path.write_text(content.strip() + \"\\n\", encoding=\"utf-8\")\n 116 |                 console.print(\"[green]Saved API key to .env[/green]\")\n 117 | \n 118 |     config.provider = provider\n 119 |     config.model = model\n 120 |     config.api_base = api_base or config.api_base\n 121 |     config.save()"
+  },
+  {
+    "file_path": "/Users/lpozo/Work/Projects/Python/codereview/src/codereview/cli.py",
+    "line_start": 119,
+    "line_end": 119,
+    "col_start": 20,
+    "col_end": 25,
+    "linter_name": "Pyright",
+    "error_code": "reportAttributeAccessIssue",
+    "message": "[ERROR] Cannot assign to attribute \"model\" for class \"Config\"\n\u00a0\u00a0Type \"str | None\" is not assignable to type \"str\"\n\u00a0\u00a0\u00a0\u00a0\"None\" is not assignable to \"str\"",
+    "snippet_context": " 116 |                 console.print(\"[green]Saved API key to .env[/green]\")\n 117 | \n 118 |     config.provider = provider\n 119 |     config.model = model\n 120 |     config.api_base = api_base or config.api_base\n 121 |     config.save()\n 122 | "
+  },
+  {
+    "file_path": "src/codereview/cli.py",
+    "line_start": 50,
+    "line_end": 50,
+    "col_start": null,
+    "col_end": null,
+    "linter_name": "Vulture",
+    "error_code": "unused-code",
+    "message": "unused function 'init' (60% confidence)",
+    "snippet_context": "  47 |     \"\"\"AI-powered code reviewer and auto-fixer.\"\"\"\n  48 | \n  49 | \n  50 | @main.command()\n  51 | @click.option(\n  52 |     \"--provider\",\n  53 |     help=\"AI Provider (e.g., openai, anthropic, ollama)\","
+  },
+  {
+    "file_path": "src/codereview/cli.py",
+    "line_start": 134,
+    "line_end": 134,
+    "col_start": null,
+    "col_end": null,
+    "linter_name": "Vulture",
+    "error_code": "unused-code",
+    "message": "unused function 'scan' (60% confidence)",
+    "snippet_context": " 131 |     )\n 132 | \n 133 | \n 134 | @main.command()\n 135 | @click.argument(\"target\", type=click.Path(exists=True, path_type=Path))\n 136 | @click.option(\"--only\", help=\"Comma-separated list of linters to run\")\n 137 | @click.option(\"--skip\", help=\"Comma-separated list of linters to skip\")"
+  },
+  {
+    "file_path": "src/codereview/cli.py",
+    "line_start": 230,
+    "line_end": 230,
+    "col_start": null,
+    "col_end": null,
+    "linter_name": "Vulture",
+    "error_code": "unused-code",
+    "message": "unused function 'fix' (60% confidence)",
+    "snippet_context": " 227 |     )\n 228 | \n 229 | \n 230 | @main.command()\n 231 | @click.option(\n 232 |     \"--input\",\n 233 |     \"input_file\","
+  },
+  {
+    "file_path": "src/codereview/config.py",
+    "line_start": 62,
+    "line_end": 62,
+    "col_start": null,
+    "col_end": null,
+    "linter_name": "Vulture",
+    "error_code": "unused-code",
+    "message": "unused function 'get_api_key' (60% confidence)",
+    "snippet_context": "  59 |         config_path.write_text(\"\".join(lines), encoding=\"utf-8\")\n  60 | \n  61 | \n  62 | def get_api_key(provider: str) -> str | None:\n  63 |     \"\"\"Retrieve the API key for a given provider from environment variables.\n  64 | \n  65 |     Args:"
+  }
+]

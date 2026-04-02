@@ -2,6 +2,7 @@
 
 import asyncio
 import difflib
+import json
 import os
 from pathlib import Path
 from typing import cast
@@ -38,6 +39,8 @@ LINTER_MAP: dict[str, type[BaseLinter]] = {
     "vulture": VultureLinter,
 }
 
+SCAN_RESULT_FILE = Path("scan-result.json")
+
 
 @click.group()
 def main() -> None:
@@ -45,9 +48,18 @@ def main() -> None:
 
 
 @main.command()
-@click.option("--provider", help="AI Provider (e.g., openai, anthropic, ollama)")
-@click.option("--model", help="AI Model name override")
-@click.option("--api-base", help="AI Provider API base URL (optional)")
+@click.option(
+    "--provider",
+    help="AI Provider (e.g., openai, anthropic, ollama)",
+)
+@click.option(
+    "--model",
+    help="AI Model name override",
+)
+@click.option(
+    "--api-base",
+    help="AI Provider API base URL (optional)",
+)
 def init(
     provider: str | None,
     model: str | None,
@@ -121,42 +133,41 @@ def init(
 
 @main.command()
 @click.argument("target", type=click.Path(exists=True, path_type=Path))
-@click.option("--provider", help="AI Provider override")
-@click.option("--model", help="AI Model name override")
-@click.option("--api-base", help="AI Provider API base URL override")
 @click.option("--only", help="Comma-separated list of linters to run")
 @click.option("--skip", help="Comma-separated list of linters to skip")
+@click.option(
+    "--output",
+    type=click.Path(path_type=Path),
+    default=None,
+    help=f"Path for the JSON results file (default: {SCAN_RESULT_FILE})",
+)
+@click.option(
+    "-v",
+    "--verbose",
+    is_flag=True,
+    default=False,
+    help="Print a detailed report of every issue found.",
+)
 def scan(
     target: Path,
-    provider: str | None,
-    model: str | None,
-    api_base: str | None,
     only: str | None,
     skip: str | None,
+    output: Path | None,
+    verbose: bool,
 ) -> None:
-    """Scan a target file or directory and suggest AI fixes."""
-    asyncio.run(_async_scan(target, provider, model, api_base, only, skip))
+    """Scan a target file or directory and save results to a JSON file."""
+    asyncio.run(_async_scan(target, only, skip, output or SCAN_RESULT_FILE, verbose))
 
 
 async def _async_scan(
     target: Path,
-    provider_name: str | None,
-    model_name: str | None,
-    api_base: str | None,
     only: str | None,
     skip: str | None,
+    output: Path,
+    verbose: bool = False,
 ) -> None:
-    """Asynchronous implementation of the scan command."""
-    # Load configuration
-    config = Config.load()
-
-    # Overrides
-    final_provider = provider_name or config.provider
-    final_model = model_name or config.model
-    final_api_base = api_base or config.api_base
-
+    """Run all configured linters and write results to a JSON file."""
     console.print(f"[bold blue]Scanning {target}...[/bold blue]")
-    console.print(f"[dim]Using {final_provider}:{final_model}[/dim]")
 
     # Filtering logic
     active_linters = list(LINTER_MAP.keys())
@@ -177,9 +188,102 @@ async def _async_scan(
         console.print("[bold green]No issues found! 🎉[/bold green]")
         return
 
-    console.print(f"[bold red]Found {len(results)} issues.[/bold red]")
+    # Per-linter summary
+    from collections import Counter
 
-    # Initialize AI Provider using Factory
+    counts: Counter[str] = Counter(r.linter_name for r in results)
+    summary_lines = "\n".join(
+        f"  {linter}: {count}" for linter, count in sorted(counts.items())
+    )
+    console.print(f"[bold red]Found {len(results)} issues:[/bold red]\n{summary_lines}")
+
+    if verbose:
+        for idx, result in enumerate(results):
+            location = f"{result.file_path}:{result.line_start}"
+            if result.col_start is not None:
+                location += f":{result.col_start}"
+            console.print(
+                Panel(
+                    f"[bold]{result.linter_name}[/bold] [{result.error_code}] "
+                    f"[yellow]{location}[/yellow]\n\n"
+                    f"{result.message}"
+                    + (
+                        f"\n\n[dim]{result.snippet_context}[/dim]"
+                        if result.snippet_context
+                        else ""
+                    ),
+                    title=f"Issue {idx + 1}/{len(results)}",
+                    border_style="red",
+                )
+            )
+
+    # Serialize to JSON
+    output.write_text(
+        json.dumps([r.to_dict() for r in results], indent=2), encoding="utf-8"
+    )
+    console.print(f"\n[bold green]Results saved to {output}[/bold green]")
+    console.print(
+        "[dim]Run 'codereview fix' to get AI suggestions and apply patches.[/dim]"
+    )
+
+
+@main.command()
+@click.option(
+    "--input",
+    "input_file",
+    type=click.Path(path_type=Path),
+    default=None,
+    help=f"Path to the scan results JSON file (default: {SCAN_RESULT_FILE})",
+)
+@click.option("--provider", help="AI Provider override")
+@click.option("--model", help="AI Model name override")
+@click.option("--api-base", help="AI Provider API base URL override")
+def fix(
+    input_file: Path | None,
+    provider: str | None,
+    model: str | None,
+    api_base: str | None,
+) -> None:
+    """Read scan results and interactively apply AI-suggested fixes."""
+    asyncio.run(_async_fix(input_file or SCAN_RESULT_FILE, provider, model, api_base))
+
+
+async def _async_fix(
+    input_file: Path,
+    provider_name: str | None,
+    model_name: str | None,
+    api_base: str | None,
+) -> None:
+    """AI suggestion and interactive patch workflow."""
+    if not input_file.exists():
+        console.print(
+            f"[bold red]Error:[/bold red] {input_file} not found. "
+            "Run 'codereview scan <target>' first."
+        )
+        return
+
+    try:
+        data = json.loads(input_file.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        console.print(f"[bold red]Error reading {input_file}:[/bold red] {exc}")
+        return
+
+    results = [LinterResult.from_dict(item) for item in data]
+
+    if not results:
+        console.print("[bold green]No issues to fix.[/bold green]")
+        return
+
+    config = Config.load()
+    final_provider = provider_name or config.provider
+    final_model = model_name or config.model
+    final_api_base = api_base or config.api_base
+
+    console.print(
+        f"[bold blue]Loaded {len(results)} issues from {input_file}[/bold blue]"
+    )
+    console.print(f"[dim]Using {final_provider}:{final_model}[/dim]")
+
     try:
         ai = AIFactory.create(final_provider, final_model, final_api_base)
     except ValueError as exc:
@@ -192,11 +296,10 @@ async def _async_scan(
     async def _wrapped_generate_fixes(res: LinterResult) -> list[AIFixProposal]:
         async with ai_semaphore:
             fixes = await ai.generate_fixes(res)
-            # Retraso prudente entre peticiones para evitar Rate Limit
             await asyncio.sleep(0.5)
             return fixes
 
-    # Launch all tasks immediately in background
+    # Launch all AI tasks immediately in the background
     ai_tasks = [
         asyncio.create_task(_wrapped_generate_fixes(result)) for result in results
     ]
@@ -214,7 +317,6 @@ async def _async_scan(
 
         console.print("[dim]Waiting for AI response...[/dim]")
 
-        # Await the specific task for this result
         proposals = await ai_tasks[idx]
 
         if not proposals:
@@ -233,7 +335,7 @@ async def _async_scan(
                 )
             )
 
-        # Non-blocking prompt (runs in a separate thread so other AI tasks can continue)
+        # Non-blocking prompt so other AI tasks can continue in the background
         choice = await asyncio.to_thread(
             click.prompt,
             "Select an option to apply (1, 2, 3...) or 's' to skip",

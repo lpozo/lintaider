@@ -32,8 +32,10 @@ def test_cli_scan_no_issues(mocker, tmp_path, mock_config) -> None:
     assert "No issues found" in result.output
 
 
-def test_cli_scan_with_issues_skip(mocker, tmp_path, mock_config) -> None:
-    """Test scanning a file with an issue and typing 's' to skip."""
+def test_cli_scan_with_issues(mocker, tmp_path, mock_config) -> None:
+    """Test scanning a file with issues saves results to a JSON file."""
+    import json
+
     runner = CliRunner()
     test_file = tmp_path / "error.py"
     test_file.write_text("import bad\n", encoding="utf-8")
@@ -56,16 +58,90 @@ def test_cli_scan_with_issues_skip(mocker, tmp_path, mock_config) -> None:
         return_value=[fake_result],
     )
 
+    output_file = tmp_path / "scan-result.json"
+    result = runner.invoke(main, ["scan", str(test_file), "--output", str(output_file)])
+
+    assert result.exit_code == 0
+    assert "Found 1 issues" in result.output
+    assert "Results saved to" in result.output
+    assert output_file.exists()
+    data = json.loads(output_file.read_text(encoding="utf-8"))
+    assert len(data) == 1
+    assert data[0]["linter_name"] == "TestLinter"
+    assert data[0]["error_code"] == "E1"
+
+
+def test_cli_fix_with_issue_skip(mocker, tmp_path, mock_config) -> None:
+    """Test fix command loads scan results, presents AI proposal, and skips."""
+    import json
+
+    runner = CliRunner()
+    test_file = tmp_path / "error.py"
+    test_file.write_text("import bad\n", encoding="utf-8")
+
+    fake_result = LinterResult(
+        file_path=test_file,
+        line_start=1,
+        line_end=1,
+        col_start=1,
+        col_end=10,
+        linter_name="TestLinter",
+        error_code="E1",
+        message="A test error",
+        snippet_context="import bad",
+    )
+
+    input_file = tmp_path / "scan-result.json"
+    input_file.write_text(json.dumps([fake_result.to_dict()]), encoding="utf-8")
+
     proposal = AIFixProposal(explanation="Fix", code_diff="import good")
     mocker.patch(
         "codereview.cli.AIFactory.create",
     ).return_value.generate_fixes = AsyncMock(return_value=[proposal])
 
-    result = runner.invoke(main, ["scan", str(test_file)], input="s\n")
+    result = runner.invoke(main, ["fix", "--input", str(input_file)], input="s\n")
 
     assert result.exit_code == 0
     assert "Option 1: Fix" in result.output
     assert "Skipping" in result.output
+
+
+def test_cli_scan_verbose(mocker, tmp_path, mock_config) -> None:
+    """Test that --verbose prints per-issue panels."""
+    import json
+
+    runner = CliRunner()
+    test_file = tmp_path / "error.py"
+    test_file.write_text("import bad\n", encoding="utf-8")
+
+    fake_result = LinterResult(
+        file_path=test_file,
+        line_start=3,
+        line_end=3,
+        col_start=5,
+        col_end=10,
+        linter_name="TestLinter",
+        error_code="E1",
+        message="A test error",
+        snippet_context="import bad",
+    )
+
+    mocker.patch(
+        "codereview.cli.Engine.run_all",
+        new_callable=AsyncMock,
+        return_value=[fake_result],
+    )
+
+    output_file = tmp_path / "scan-result.json"
+    result = runner.invoke(
+        main, ["scan", str(test_file), "--output", str(output_file), "--verbose"]
+    )
+
+    assert result.exit_code == 0
+    assert "Issue 1/1" in result.output
+    assert "E1" in result.output
+    assert "A test error" in result.output
+    assert "import bad" in result.output
 
 
 def test_cli_scan_only_filter(mocker, tmp_path, mock_config) -> None:
