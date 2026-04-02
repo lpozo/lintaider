@@ -15,7 +15,13 @@ class PylintLinter(BaseLinter):
 
     async def run(self, target: Path) -> list[LinterResult]:
         """Run Pylint on the target and parse the JSON output."""
-        cmd = ["uv", "run", "pylint", "--output-format=json", str(target.absolute())]
+        cmd = [
+            "uv",
+            "run",
+            "pylint",
+            "--output-format=json",
+            str(target.absolute()),
+        ]
         result = await self._run_command(cmd, Path.cwd())
 
         try:
