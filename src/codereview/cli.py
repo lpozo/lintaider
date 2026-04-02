@@ -12,7 +12,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.syntax import Syntax
 
-from codereview.ai import AIFactory, AIFixProposal
+from codereview.ai import AIFixProposal, create_ai_provider
 from codereview.config import Config
 from codereview.linters import (
     BanditLinter,
@@ -285,7 +285,7 @@ async def _async_fix(
     console.print(f"[dim]Using {final_provider}:{final_model}[/dim]")
 
     try:
-        ai = AIFactory.create(final_provider, final_model, final_api_base)
+        ai = create_ai_provider(final_provider, final_model, final_api_base)
     except ValueError as exc:
         console.print(f"[bold red]Error:[/bold red] {exc}")
         return

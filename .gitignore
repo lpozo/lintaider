@@ -8,3 +8,7 @@ wheels/
 
 # Virtual environments
 .venv
+
+# Config files
+codereview.toml
+scan_results.json

@@ -5,24 +5,24 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from codereview.ai import AIFactory, LiteLLMProvider
+from codereview.ai import LiteLLMProvider, create_ai_provider
 from codereview.linters.result import LinterResult
 
 
-def test_ai_factory() -> None:
-    """Test AIFactory creation logic."""
-    ollama = AIFactory.create("local", "llama3")
+def test_create_ai_provider() -> None:
+    """Test create_ai_provider logic."""
+    ollama = create_ai_provider("local", "llama3")
     assert isinstance(ollama, LiteLLMProvider)
     # Check that it added the prefix and set api_base
     assert ollama.model == "ollama/llama3"
     assert ollama.api_base == "http://localhost:11434"
 
-    openai = AIFactory.create("openai", "gpt-4")
+    openai = create_ai_provider("openai", "gpt-4")
     assert isinstance(openai, LiteLLMProvider)
     assert openai.model == "openai/gpt-4"
     assert openai.api_base is None
 
-    cloud = AIFactory.create("cloud", "anthropic/claude-3")
+    cloud = create_ai_provider("cloud", "anthropic/claude-3")
     assert isinstance(cloud, LiteLLMProvider)
     assert cloud.model == "anthropic/claude-3"
 
