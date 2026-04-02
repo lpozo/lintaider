@@ -48,45 +48,36 @@ def main() -> None:
 
 
 @main.command()
-@click.option(
-    "--provider",
-    help="AI Provider (e.g., openai, anthropic, ollama)",
-)
-@click.option(
-    "--model",
-    help="AI Model name override",
-)
-@click.option(
-    "--api-base",
-    help="AI Provider API base URL (optional)",
-)
-def init(
-    provider: str | None,
-    model: str | None,
-    api_base: str | None,
-) -> None:
+def init() -> None:
     """Initialize configuration for CodeReview."""
     config = Config.load()
 
-    provider = provider or click.prompt(
+    provider = click.prompt(
         "AI Provider",
         default=config.provider,
         type=str,
     )
-    model = model or click.prompt(
+    model = click.prompt(
         "AI Model",
         default=config.model,
         type=str,
     )
+    api_base = (
+        click.prompt(
+            "AI Provider API base URL (leave empty for default)",
+            default=config.api_base or "",
+            type=str,
+            show_default=False,
+        ).strip()
+        or None
+    )
 
     # API Key handling for Cloud providers
-    if provider.lower() not in ("local", "ollama"):
+    if provider.lower() != "ollama":
         env_map = {
             "openai": "OPENAI_API_KEY",
             "anthropic": "ANTHROPIC_API_KEY",
             "gemini": "GEMINI_API_KEY",
-            "mistral": "MISTRAL_API_KEY",
-            "groq": "GROQ_API_KEY",
         }
         env_var = env_map.get(provider.lower())
         if env_var:
@@ -117,7 +108,7 @@ def init(
 
     config.provider = provider
     config.model = model
-    config.api_base = api_base or config.api_base
+    config.api_base = api_base
     config.save()
 
     console.print(
@@ -156,7 +147,9 @@ def scan(
     verbose: bool,
 ) -> None:
     """Scan a target file or directory and save results to a JSON file."""
-    asyncio.run(_async_scan(target, only, skip, output or SCAN_RESULT_FILE, verbose))
+    asyncio.run(
+        _async_scan(target, only, skip, output or SCAN_RESULT_FILE, verbose),
+    )
 
 
 async def _async_scan(
@@ -245,7 +238,9 @@ def fix(
     api_base: str | None,
 ) -> None:
     """Read scan results and interactively apply AI-suggested fixes."""
-    asyncio.run(_async_fix(input_file or SCAN_RESULT_FILE, provider, model, api_base))
+    asyncio.run(
+        _async_fix(input_file or SCAN_RESULT_FILE, provider, model, api_base),
+    )
 
 
 async def _async_fix(
