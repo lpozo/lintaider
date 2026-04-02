@@ -12,14 +12,13 @@ class MockLinter(BaseLinter):
     """A mock linter that returns predefined results."""
 
     def __init__(self, name: str, return_list: list[LinterResult]) -> None:
-        self._name = name
+        self.name = name
         self._returns = return_list
 
-    @property
-    def name(self) -> str:
-        return self._name
+    def build_command(self, target: Path) -> list[str]:
+        return ["echo", str(target)]
 
-    async def run(self, target: Path) -> list[LinterResult]:
+    def parse_output(self, process_result, target: Path) -> list[LinterResult]:
         return self._returns
 
 

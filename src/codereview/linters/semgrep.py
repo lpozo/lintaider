@@ -3,7 +3,7 @@
 import json
 from pathlib import Path
 
-from codereview.linters.base import BaseLinter
+from codereview.linters.base import AsyncCompletedProcess, BaseLinter
 from codereview.linters.context import extract_snippet
 from codereview.linters.result import LinterResult
 
@@ -13,9 +13,9 @@ class SemgrepLinter(BaseLinter):
 
     name = "Semgrep"
 
-    async def run(self, target: Path) -> list[LinterResult]:
-        """Run Semgrep on the target and parse the JSON output."""
-        cmd = [
+    def build_command(self, target: Path) -> list[str]:
+        """Build the Semgrep command for the target path."""
+        return [
             "uv",
             "run",
             "semgrep",
@@ -25,10 +25,16 @@ class SemgrepLinter(BaseLinter):
             "--json",
             str(target.absolute()),
         ]
-        result = await self._run_command(cmd, Path.cwd())
+
+    def parse_output(
+        self,
+        process_result: AsyncCompletedProcess,
+        target: Path,
+    ) -> list[LinterResult]:
+        """Parse Semgrep JSON output."""
 
         try:
-            data = json.loads(result.stdout)
+            data = json.loads(process_result.stdout)
             findings = data.get("results", [])
         except json.JSONDecodeError:
             return []

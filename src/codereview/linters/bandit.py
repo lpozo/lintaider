@@ -3,7 +3,7 @@
 import json
 from pathlib import Path
 
-from codereview.linters.base import BaseLinter
+from codereview.linters.base import AsyncCompletedProcess, BaseLinter
 from codereview.linters.context import extract_snippet
 from codereview.linters.result import LinterResult
 
@@ -13,16 +13,21 @@ class BanditLinter(BaseLinter):
 
     name = "Bandit"
 
-    async def run(self, target: Path) -> list[LinterResult]:
-        """Run Bandit on the target and parse the JSON output."""
+    def build_command(self, target: Path) -> list[str]:
+        """Build the Bandit command for the target path."""
         target_str = str(target.absolute())
         args = ["-r", target_str] if target.is_dir() else [target_str]
-        cmd = ["uv", "run", "bandit", "-f", "json"] + args
+        return ["uv", "run", "bandit", "-f", "json"] + args
 
-        result = await self._run_command(cmd, Path.cwd())
+    def parse_output(
+        self,
+        process_result: AsyncCompletedProcess,
+        target: Path,
+    ) -> list[LinterResult]:
+        """Parse Bandit JSON output."""
 
         try:
-            output = json.loads(result.stdout)
+            output = json.loads(process_result.stdout)
             errors = output.get("results", [])
         except json.JSONDecodeError:
             return []

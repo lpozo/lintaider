@@ -3,7 +3,7 @@
 import re
 from pathlib import Path
 
-from codereview.linters.base import BaseLinter
+from codereview.linters.base import AsyncCompletedProcess, BaseLinter
 from codereview.linters.context import extract_snippet
 from codereview.linters.result import LinterResult
 
@@ -13,16 +13,20 @@ class VultureLinter(BaseLinter):
 
     name = "Vulture"
 
-    async def run(self, target: Path) -> list[LinterResult]:
-        """Run Vulture on the target and parse the text output."""
-        cmd = ["uv", "run", "vulture", str(target.absolute())]
-        result = await self._run_command(cmd, Path.cwd())
+    def build_command(self, target: Path) -> list[str]:
+        """Build the Vulture command for the target path."""
+        return ["uv", "run", "vulture", str(target.absolute())]
+
+    def parse_output(
+        self, process_result: AsyncCompletedProcess, target: Path
+    ) -> list[LinterResult]:
+        """Parse Vulture text output."""
 
         # Regex for Vulture output: filename:lineno: message
         pattern = re.compile(r"^(?P<file>.+?):(?P<line>\d+):\s*(?P<msg>.+)$")
 
         parsed_results = []
-        for line in result.stdout.splitlines():
+        for line in process_result.stdout.splitlines():
             line = line.strip()
             if not line:
                 continue

@@ -3,7 +3,7 @@
 import json
 from pathlib import Path
 
-from codereview.linters.base import BaseLinter
+from codereview.linters.base import AsyncCompletedProcess, BaseLinter
 from codereview.linters.context import extract_snippet
 from codereview.linters.result import LinterResult
 
@@ -13,13 +13,19 @@ class PyrightLinter(BaseLinter):
 
     name = "Pyright"
 
-    async def run(self, target: Path) -> list[LinterResult]:
-        """Run Pyright on the target and parse the JSON output."""
-        cmd = ["uv", "run", "pyright", "--outputjson", str(target.absolute())]
-        result = await self._run_command(cmd, Path.cwd())
+    def build_command(self, target: Path) -> list[str]:
+        """Build the Pyright command for the target path."""
+        return ["uv", "run", "pyright", "--outputjson", str(target.absolute())]
+
+    def parse_output(
+        self,
+        process_result: AsyncCompletedProcess,
+        target: Path,
+    ) -> list[LinterResult]:
+        """Parse Pyright JSON output."""
 
         try:
-            data = json.loads(result.stdout)
+            data = json.loads(process_result.stdout)
             diagnostics = data.get("generalDiagnostics", [])
         except json.JSONDecodeError:
             return []

@@ -3,7 +3,7 @@
 import re
 from pathlib import Path
 
-from codereview.linters.base import BaseLinter
+from codereview.linters.base import AsyncCompletedProcess, BaseLinter
 from codereview.linters.context import extract_snippet
 from codereview.linters.result import LinterResult
 
@@ -13,9 +13,9 @@ class MyPyLinter(BaseLinter):
 
     name = "MyPy"
 
-    async def run(self, target: Path) -> list[LinterResult]:
-        """Run MyPy on the target and parse the text output."""
-        cmd = [
+    def build_command(self, target: Path) -> list[str]:
+        """Build the MyPy command for the target path."""
+        return [
             "uv",
             "run",
             "mypy",
@@ -24,7 +24,13 @@ class MyPyLinter(BaseLinter):
             "--no-error-summary",
             str(target.absolute()),
         ]
-        result = await self._run_command(cmd, Path.cwd())
+
+    def parse_output(
+        self,
+        process_result: AsyncCompletedProcess,
+        target: Path,
+    ) -> list[LinterResult]:
+        """Parse MyPy text output."""
 
         pattern = re.compile(
             r"^(?P<file>.+?):(?P<line>\d+):(?P<col>\d+):\s*"
@@ -33,7 +39,7 @@ class MyPyLinter(BaseLinter):
         )
 
         parsed_results = []
-        for line in result.stdout.splitlines():
+        for line in process_result.stdout.splitlines():
             line = line.strip()
             if not line:
                 continue

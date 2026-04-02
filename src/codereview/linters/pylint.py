@@ -3,7 +3,7 @@
 import json
 from pathlib import Path
 
-from codereview.linters.base import BaseLinter
+from codereview.linters.base import AsyncCompletedProcess, BaseLinter
 from codereview.linters.context import extract_snippet
 from codereview.linters.result import LinterResult
 
@@ -13,19 +13,25 @@ class PylintLinter(BaseLinter):
 
     name = "Pylint"
 
-    async def run(self, target: Path) -> list[LinterResult]:
-        """Run Pylint on the target and parse the JSON output."""
-        cmd = [
+    def build_command(self, target: Path) -> list[str]:
+        """Build the Pylint command for the target path."""
+        return [
             "uv",
             "run",
             "pylint",
             "--output-format=json",
             str(target.absolute()),
         ]
-        result = await self._run_command(cmd, Path.cwd())
+
+    def parse_output(
+        self,
+        process_result: AsyncCompletedProcess,
+        target: Path,
+    ) -> list[LinterResult]:
+        """Parse Pylint JSON output."""
 
         try:
-            errors = json.loads(result.stdout)
+            errors = json.loads(process_result.stdout)
         except json.JSONDecodeError:
             return []
 
