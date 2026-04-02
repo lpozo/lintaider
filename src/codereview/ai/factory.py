@@ -9,31 +9,40 @@ class AIFactory:
     """Factory class to create the requested AI provider."""
 
     @staticmethod
-    def create(provider_name: str, model_name: str | None = None) -> BaseAIProvider:
+    def create(
+        provider_name: str,
+        model_name: str | None = None,
+        api_base: str | None = None,
+    ) -> BaseAIProvider:
         """Create a provider instance.
 
         Args:
-            provider_name: One of ("local", "cloud").
+            provider_name: AI Provider (e.g. "openai", "anthropic", "ollama").
             model_name: Optional model override.
+            api_base: Optional API base URL.
 
         Returns:
             A BaseAIProvider instance.
-
-        Raises:
-            ValueError: If the provider name is unknown.
         """
         provider_name = provider_name.lower()
+        model = model_name or "llama3"
 
-        if provider_name in ("local", "ollama"):
-            # For local (Ollama) provider, we map it to LiteLLM with Prefix
-            model = model_name or "llama3"
+        # Special handling for Ollama (local)
+        if provider_name in ("ollama", "local"):
             if not model.startswith("ollama/"):
                 model = f"ollama/{model}"
-            return LiteLLMProvider(model=model, api_base="http://localhost:11434")
+            return LiteLLMProvider(
+                model=model, api_base=api_base or "http://localhost:11434"
+            )
 
+        # For Cloud/Generic carriers via LiteLLM
         if provider_name in ("cloud", "litellm"):
-            if model_name:
-                return LiteLLMProvider(model=model_name)
-            return LiteLLMProvider()
+            # If generic 'cloud' or 'litellm' is used, we just return the provider
+            # and let LiteLLM infer from the model name (which should include prefix)
+            return LiteLLMProvider(model=model, api_base=api_base)
 
-        raise ValueError(f"Unknown AI provider: {provider_name}")
+        # If it's a specific provider name (e.g. "openai"), we ensure the prefix
+        if "/" not in model:
+            model = f"{provider_name}/{model}"
+
+        return LiteLLMProvider(model=model, api_base=api_base)

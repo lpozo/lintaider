@@ -6,9 +6,9 @@
 
 -   **Motor Asíncrono**: Escanea tu código con múltiples linters en paralelo usando `asyncio`.
 -   **IA en Segundo Plano**: Genera sugerencias de corrección mientras revisas los hallazgos previos.
+-   **Configuración Profesional**: Comando `init` para configurar proveedores (OpenAI, Anthropic, Ollama) de forma persistente.
 -   **Multi-Linter**: Soporte nativo para Ruff, Pylint, Bandit, MyPy, Pyright, Semgrep y Vulture.
--   **Auto-Fixer Inteligente**: Aplica parches sugeridos por la IA con algoritmos de *Fuzzy Matching* que respetan el contexto de tu código.
--   **Universal**: Compatible con Ollama (`local`) y cualquier proveedor soportado por LiteLLM (`cloud`, como OpenAI o Anthropic).
+-   **Auto-Fixer Inteligente**: Aplica parches sugeridos por la IA con algoritmos de *Fuzzy Matching*.
 
 ## Instalación
 
@@ -20,35 +20,37 @@ cd codereview
 uv sync
 ```
 
+## Configuración Inicial
+
+Antes de empezar, configura tu proveedor de IA preferido:
+
+```bash
+uv run codereview init
+```
+
+Esto creará un archivo `codereview.toml` con tus preferencias y un archivo `.env` para tus API Keys.
+
 ## Uso rápido
 
-Escanea tu código usando el modo local (modelo por defecto `llama3` vía Ollama):
+Una vez configurado, simplemente ejecuta:
 
 ```bash
 uv run codereview scan src/
 ```
 
-Especificar proveedor y modelo (ej. Cloud via OpenAI):
+### Overrides (opcional)
+
+Puedes sobrescribir la configuración guardada usando flags:
 
 ```bash
-uv run codereview scan . --provider cloud --model gpt-4o
-```
-
-### Opciones de filtrado
-
-```bash
-# Ejecutar solo un linter específico
-uv run codereview scan src/ --only ruff
-
-# Saltar ciertos linters
-uv run codereview scan src/ --skip bandit,semgrep
+uv run codereview scan . --provider openai --model gpt-4o
 ```
 
 ## Linters Soportados
 
 | Linter | Especialidad |
 | :--- | :--- |
-| **Ruff** | Estilo y errores comunes (Ultra-rápido) |
+| **Ruff** | Estilo y errores comunes |
 | **Pylint** | Análisis estático profundo |
 | **Bandit** | Vulnerabilidades de seguridad |
 | **MyPy** | Chequeo de tipos estático |

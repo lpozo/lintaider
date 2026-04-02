@@ -1,19 +1,27 @@
 """Tests for the CodeReviewer CLI interface."""
 
+from unittest.mock import AsyncMock
+
+import pytest
 from click.testing import CliRunner
 
 from codereview.ai import AIFixProposal
 from codereview.cli import main
+from codereview.config import Config
 from codereview.linters.result import LinterResult
 
 
-def test_cli_scan_no_issues(mocker, tmp_path) -> None:
+@pytest.fixture
+def mock_config(mocker):
+    """Fixture to mock Config.load with defaults."""
+    return mocker.patch("codereview.cli.Config.load", return_value=Config())
+
+
+def test_cli_scan_no_issues(mocker, tmp_path, mock_config) -> None:
     """Test scanning a file with no issues."""
     runner = CliRunner()
     test_file = tmp_path / "valid.py"
     test_file.write_text("def ok():\n    return 1\n", encoding="utf-8")
-
-    from unittest.mock import AsyncMock
 
     mocker.patch(
         "codereview.cli.Engine.run_all", new_callable=AsyncMock, return_value=[]
@@ -24,7 +32,7 @@ def test_cli_scan_no_issues(mocker, tmp_path) -> None:
     assert "No issues found" in result.output
 
 
-def test_cli_scan_with_issues_skip(mocker, tmp_path) -> None:
+def test_cli_scan_with_issues_skip(mocker, tmp_path, mock_config) -> None:
     """Test scanning a file with an issue and typing 's' to skip."""
     runner = CliRunner()
     test_file = tmp_path / "error.py"
@@ -42,8 +50,6 @@ def test_cli_scan_with_issues_skip(mocker, tmp_path) -> None:
         snippet_context="import bad",
     )
 
-    from unittest.mock import AsyncMock
-
     mocker.patch(
         "codereview.cli.Engine.run_all",
         new_callable=AsyncMock,
@@ -52,9 +58,8 @@ def test_cli_scan_with_issues_skip(mocker, tmp_path) -> None:
 
     proposal = AIFixProposal(explanation="Fix", code_diff="import good")
     mocker.patch(
-        "codereview.ai.provider.LiteLLMProvider.generate_fixes",
-        return_value=[proposal],
-    )
+        "codereview.cli.AIFactory.create",
+    ).return_value.generate_fixes = AsyncMock(return_value=[proposal])
 
     result = runner.invoke(main, ["scan", str(test_file)], input="s\n")
 
@@ -63,7 +68,7 @@ def test_cli_scan_with_issues_skip(mocker, tmp_path) -> None:
     assert "Skipping" in result.output
 
 
-def test_cli_scan_only_filter(mocker, tmp_path) -> None:
+def test_cli_scan_only_filter(mocker, tmp_path, mock_config) -> None:
     """Test the --only flag for filtering linters."""
     runner = CliRunner()
     test_file = tmp_path / "valid.py"
@@ -80,7 +85,7 @@ def test_cli_scan_only_filter(mocker, tmp_path) -> None:
     assert linters[0].__class__.__name__ == "RuffLinter"
 
 
-def test_cli_scan_skip_filter(mocker, tmp_path) -> None:
+def test_cli_scan_skip_filter(mocker, tmp_path, mock_config) -> None:
     """Test the --skip flag for filtering linters."""
     runner = CliRunner()
     test_file = tmp_path / "valid.py"
@@ -98,6 +103,26 @@ def test_cli_scan_skip_filter(mocker, tmp_path) -> None:
     # Only Vulture should remain
     assert len(linters) == 1
     assert linters[0].__class__.__name__ == "VultureLinter"
+
+
+def test_cli_init_command(mocker, tmp_path) -> None:
+    """Test the init command flow."""
+    runner = CliRunner()
+    config_file = tmp_path / "codereview.toml"
+
+    # Create a real config object and mock load to return it
+    config = Config()
+    mocker.patch("codereview.cli.Config.load", return_value=config)
+    mock_save = mocker.patch.object(Config, "save")
+
+    # Inputs: Provider, Model, API Key (empty)
+    result = runner.invoke(main, ["init"], input="openai\ngpt-4\n\n")
+
+    assert result.exit_code == 0
+    assert "Configuration Saved" in result.output
+    assert config.provider == "openai"
+    assert config.model == "gpt-4"
+    mock_save.assert_called_once()
 
 
 def test_cli_apply_patch_fuzzy(tmp_path) -> None:

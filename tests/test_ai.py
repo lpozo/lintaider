@@ -17,10 +17,14 @@ def test_ai_factory() -> None:
     assert ollama.model == "ollama/llama3"
     assert ollama.api_base == "http://localhost:11434"
 
-    litellm = AIFactory.create("cloud", "gpt-4")
-    assert isinstance(litellm, LiteLLMProvider)
-    assert litellm.model == "gpt-4"
-    assert litellm.api_base is None
+    openai = AIFactory.create("openai", "gpt-4")
+    assert isinstance(openai, LiteLLMProvider)
+    assert openai.model == "openai/gpt-4"
+    assert openai.api_base is None
+
+    cloud = AIFactory.create("cloud", "anthropic/claude-3")
+    assert isinstance(cloud, LiteLLMProvider)
+    assert cloud.model == "anthropic/claude-3"
 
 
 @pytest.mark.asyncio

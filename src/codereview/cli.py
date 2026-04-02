@@ -2,15 +2,17 @@
 
 import asyncio
 import difflib
+import os
 from pathlib import Path
-from typing import Any, cast
+from typing import cast
 
 import click
 from rich.console import Console
 from rich.panel import Panel
 from rich.syntax import Syntax
 
-from codereview.ai import AIFactory
+from codereview.ai import AIFactory, AIFixProposal
+from codereview.config import Config
 from codereview.linters import (
     BanditLinter,
     BaseLinter,
@@ -22,6 +24,7 @@ from codereview.linters import (
     SemgrepLinter,
     VultureLinter,
 )
+from codereview.linters.result import LinterResult
 
 console = Console()
 
@@ -42,31 +45,118 @@ def main() -> None:
 
 
 @main.command()
-@click.argument("target", type=click.Path(exists=True, path_type=Path))
-@click.option("--provider", default="local", help="AI Provider (local, cloud)")
+@click.option("--provider", help="AI Provider (e.g., openai, anthropic, ollama)")
 @click.option("--model", help="AI Model name override")
+@click.option("--api-base", help="AI Provider API base URL (optional)")
+def init(
+    provider: str | None,
+    model: str | None,
+    api_base: str | None,
+) -> None:
+    """Initialize configuration for CodeReview."""
+    config = Config.load()
+
+    provider = provider or click.prompt(
+        "AI Provider",
+        default=config.provider,
+        type=str,
+    )
+    model = model or click.prompt(
+        "AI Model",
+        default=config.model,
+        type=str,
+    )
+
+    # API Key handling for Cloud providers
+    if provider.lower() not in ("local", "ollama"):
+        env_map = {
+            "openai": "OPENAI_API_KEY",
+            "anthropic": "ANTHROPIC_API_KEY",
+            "gemini": "GEMINI_API_KEY",
+            "mistral": "MISTRAL_API_KEY",
+            "groq": "GROQ_API_KEY",
+        }
+        env_var = env_map.get(provider.lower())
+        if env_var:
+            current_key = os.getenv(env_var)
+            api_key = click.prompt(
+                f"Enter your {env_var} (leave empty to keep current or skip)",
+                default=current_key or "",
+                hide_input=True,
+            )
+            if api_key:
+                # Store in .env
+                env_path = Path(".env")
+                content = ""
+                if env_path.exists():
+                    content = env_path.read_text(encoding="utf-8")
+
+                new_line = f'{env_var}="{api_key}"'
+                if env_var in content:
+                    # Replace existing
+                    import re
+
+                    content = re.sub(f'{env_var}=".*"', new_line, content)
+                else:
+                    content += f"\n{new_line}\n"
+
+                env_path.write_text(content.strip() + "\n", encoding="utf-8")
+                console.print("[green]Saved API key to .env[/green]")
+
+    config.provider = provider
+    config.model = model
+    config.api_base = api_base or config.api_base
+    config.save()
+
+    console.print(
+        Panel(
+            f"Provider: [bold]{config.provider}[/bold]\n"
+            f"Model: [bold]{config.model}[/bold]\n"
+            f"API Base: [bold]{config.api_base or 'Default'}[/bold]",
+            title="Configuration Saved to codereview.toml",
+            border_style="green",
+        )
+    )
+
+
+@main.command()
+@click.argument("target", type=click.Path(exists=True, path_type=Path))
+@click.option("--provider", help="AI Provider override")
+@click.option("--model", help="AI Model name override")
+@click.option("--api-base", help="AI Provider API base URL override")
 @click.option("--only", help="Comma-separated list of linters to run")
 @click.option("--skip", help="Comma-separated list of linters to skip")
 def scan(
     target: Path,
-    provider: str,
+    provider: str | None,
     model: str | None,
+    api_base: str | None,
     only: str | None,
     skip: str | None,
 ) -> None:
     """Scan a target file or directory and suggest AI fixes."""
-    asyncio.run(_async_scan(target, provider, model, only, skip))
+    asyncio.run(_async_scan(target, provider, model, api_base, only, skip))
 
 
 async def _async_scan(
     target: Path,
-    provider_name: str,
-    model: str | None,
+    provider_name: str | None,
+    model_name: str | None,
+    api_base: str | None,
     only: str | None,
     skip: str | None,
 ) -> None:
     """Asynchronous implementation of the scan command."""
+    # Load configuration
+    config = Config.load()
+
+    # Overrides
+    final_provider = provider_name or config.provider
+    final_model = model_name or config.model
+    final_api_base = api_base or config.api_base
+
     console.print(f"[bold blue]Scanning {target}...[/bold blue]")
+    console.print(f"[dim]Using {final_provider}:{final_model}[/dim]")
 
     # Filtering logic
     active_linters = list(LINTER_MAP.keys())
@@ -91,16 +181,15 @@ async def _async_scan(
 
     # Initialize AI Provider using Factory
     try:
-        ai = AIFactory.create(provider_name, model)
+        ai = AIFactory.create(final_provider, final_model, final_api_base)
     except ValueError as exc:
         console.print(f"[bold red]Error:[/bold red] {exc}")
         return
 
     # Background AI Task Orchestration with Rate Limiting
-    # We use a semaphore to process one AI request at a time and add a small delay
     ai_semaphore = asyncio.Semaphore(1)
 
-    async def _wrapped_generate_fixes(res: Any) -> Any:
+    async def _wrapped_generate_fixes(res: LinterResult) -> list[AIFixProposal]:
         async with ai_semaphore:
             fixes = await ai.generate_fixes(res)
             # Retraso prudente entre peticiones para evitar Rate Limit
