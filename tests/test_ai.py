@@ -11,7 +11,7 @@ from codereview.linters.result import LinterResult
 
 def test_create_ai_provider() -> None:
     """Test create_ai_provider logic."""
-    ollama = create_ai_provider("local", "llama3")
+    ollama = create_ai_provider("ollama", "llama3")
     assert isinstance(ollama, LiteLLMProvider)
     # Check that it added the prefix and set api_base
     assert ollama.model == "ollama/llama3"
@@ -22,9 +22,13 @@ def test_create_ai_provider() -> None:
     assert openai.model == "openai/gpt-4"
     assert openai.api_base is None
 
-    cloud = create_ai_provider("cloud", "anthropic/claude-3")
-    assert isinstance(cloud, LiteLLMProvider)
-    assert cloud.model == "anthropic/claude-3"
+    anthropic = create_ai_provider("anthropic", "claude-3")
+    assert isinstance(anthropic, LiteLLMProvider)
+    assert anthropic.model == "anthropic/claude-3"
+    assert anthropic.api_base is None
+
+    custom_ollama = create_ai_provider("ollama", "llama3", "http://remote:11434")
+    assert custom_ollama.api_base == "http://remote:11434"
 
 
 @pytest.mark.asyncio

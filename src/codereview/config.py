@@ -1,15 +1,17 @@
 """Configuration management for CodeReview."""
 
 import os
+import tomllib
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
-try:
-    import tomllib  # type: ignore
-except ImportError:
-    import tomli as tomllib  # type: ignore
-
 from dotenv import load_dotenv
+
+PROVIDER_ENV_MAP: dict[str, str] = {
+    "openai": "OPENAI_API_KEY",
+    "anthropic": "ANTHROPIC_API_KEY",
+    "gemini": "GEMINI_API_KEY",
+}
 
 
 @dataclass
@@ -68,14 +70,7 @@ def get_api_key(provider: str) -> str | None:
     Returns:
         The API key if found, otherwise None.
     """
-    env_map = {
-        "openai": "OPENAI_API_KEY",
-        "anthropic": "ANTHROPIC_API_KEY",
-        "gemini": "GEMINI_API_KEY",
-        "mistral": "MISTRAL_API_KEY",
-        "groq": "GROQ_API_KEY",
-    }
-    env_var = env_map.get(provider.lower())
+    env_var = PROVIDER_ENV_MAP.get(provider.lower())
     if env_var:
         return os.getenv(env_var)
     return None

@@ -18,10 +18,7 @@ class AIFixProposal:
 class BaseAIProvider(abc.ABC):
     """Abstract base class for AI providers."""
 
-    @property
-    @abc.abstractmethod
-    def name(self) -> str:
-        """Name of the provider."""
+    name: str
 
     @abc.abstractmethod
     async def generate_fixes(self, linter_result: LinterResult) -> list[AIFixProposal]:

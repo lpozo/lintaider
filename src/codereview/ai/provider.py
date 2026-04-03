@@ -12,8 +12,15 @@ from codereview.linters.result import LinterResult
 load_dotenv()
 
 
+PROVIDER_DEFAULT_API_BASES: dict[str, str] = {
+    "ollama": "http://localhost:11434",
+}
+
+
 class LiteLLMProvider(BaseAIProvider):
     """Universal AI provider using LiteLLM."""
+
+    name = "LiteLLM"
 
     def __init__(self, model: str = "gpt-4o", api_base: str | None = None) -> None:
         """Initialize LiteLLM provider.
@@ -24,11 +31,6 @@ class LiteLLMProvider(BaseAIProvider):
         """
         self.model = model
         self.api_base = api_base
-
-    @property
-    def name(self) -> str:
-        """Return provider name."""
-        return f"LiteLLM ({self.model})"
 
     async def generate_fixes(self, linter_result: LinterResult) -> list[AIFixProposal]:
         """Request fixes using LiteLLM asynchronously."""
@@ -72,3 +74,29 @@ class LiteLLMProvider(BaseAIProvider):
             return proposals
         except Exception:  # pylint: disable=broad-exception-caught
             return []
+
+
+def create_ai_provider(
+    provider_name: str,
+    model_name: str | None = None,
+    api_base: str | None = None,
+) -> BaseAIProvider:
+    """Factory function to create an AI provider.
+
+    Args:
+        provider_name: AI Provider (e.g. "openai", "anthropic", "ollama").
+        model_name: Optional model override.
+        api_base: Optional API base URL.
+
+    Returns:
+        A BaseAIProvider instance.
+    """
+    provider_name = provider_name.lower().strip()
+    model = model_name or "llama3"
+
+    # If it's a provider name (e.g. "openai"), ensure the prefix exists.
+    if "/" not in model:
+        model = f"{provider_name}/{model}"
+
+    resolved_api_base = api_base or PROVIDER_DEFAULT_API_BASES.get(provider_name)
+    return LiteLLMProvider(model=model, api_base=resolved_api_base)

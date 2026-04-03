@@ -13,7 +13,7 @@ from rich.panel import Panel
 from rich.syntax import Syntax
 
 from codereview.ai import AIFixProposal, create_ai_provider
-from codereview.config import Config
+from codereview.config import PROVIDER_ENV_MAP, Config
 from codereview.linters import (
     BanditLinter,
     BaseLinter,
@@ -74,12 +74,7 @@ def init() -> None:
 
     # API Key handling for Cloud providers
     if provider.lower() != "ollama":
-        env_map = {
-            "openai": "OPENAI_API_KEY",
-            "anthropic": "ANTHROPIC_API_KEY",
-            "gemini": "GEMINI_API_KEY",
-        }
-        env_var = env_map.get(provider.lower())
+        env_var = PROVIDER_ENV_MAP.get(provider.lower())
         if env_var:
             current_key = os.getenv(env_var)
             api_key = click.prompt(

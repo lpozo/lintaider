@@ -1,8 +1,7 @@
 """AI package initialization."""
 
 from codereview.ai.base import AIFixProposal, BaseAIProvider
-from codereview.ai.factory import create_ai_provider
-from codereview.ai.provider import LiteLLMProvider
+from codereview.ai.provider import LiteLLMProvider, create_ai_provider
 
 __all__ = [
     "BaseAIProvider",
