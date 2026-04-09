@@ -14,7 +14,7 @@ from codereview.linters.result import LinterResult
 @pytest.fixture
 def mock_config(mocker):
     """Fixture to mock Config.load with defaults."""
-    return mocker.patch("codereview.cli.Config.load", return_value=Config())
+    return mocker.patch("codereview.cli.init_handler.Config.load", return_value=Config())
 
 
 def test_cli_scan_no_issues(mocker, tmp_path, mock_config) -> None:
@@ -24,7 +24,7 @@ def test_cli_scan_no_issues(mocker, tmp_path, mock_config) -> None:
     test_file.write_text("def ok():\n    return 1\n", encoding="utf-8")
 
     mocker.patch(
-        "codereview.cli.Engine.run_all", new_callable=AsyncMock, return_value=[]
+        "codereview.cli.scan_handler.Engine.run_all", new_callable=AsyncMock, return_value=[]
     )
 
     result = runner.invoke(main, ["scan", str(test_file)])
@@ -53,7 +53,7 @@ def test_cli_scan_with_issues(mocker, tmp_path, mock_config) -> None:
     )
 
     mocker.patch(
-        "codereview.cli.Engine.run_all",
+        "codereview.cli.scan_handler.Engine.run_all",
         new_callable=AsyncMock,
         return_value=[fake_result],
     )
@@ -96,7 +96,7 @@ def test_cli_fix_with_issue_skip(mocker, tmp_path, mock_config) -> None:
 
     proposal = AIFixProposal(explanation="Fix", code_diff="import good")
     mocker.patch(
-        "codereview.cli.create_ai_provider",
+        "codereview.cli.fix_handler.create_ai_provider",
     ).return_value.generate_fixes = AsyncMock(return_value=[proposal])
 
     result = runner.invoke(main, ["fix", "--input", str(input_file)], input="s\n")
@@ -127,7 +127,7 @@ def test_cli_scan_verbose(mocker, tmp_path, mock_config) -> None:
     )
 
     mocker.patch(
-        "codereview.cli.Engine.run_all",
+        "codereview.cli.scan_handler.Engine.run_all",
         new_callable=AsyncMock,
         return_value=[fake_result],
     )
@@ -150,7 +150,7 @@ def test_cli_scan_only_filter(mocker, tmp_path, mock_config) -> None:
     test_file = tmp_path / "valid.py"
     test_file.write_text("print(1)\n", encoding="utf-8")
 
-    mock_engine = mocker.patch("codereview.cli.Engine")
+    mock_engine = mocker.patch("codereview.cli.scan_handler.Engine")
 
     runner.invoke(main, ["scan", str(test_file), "--only", "ruff"])
 
@@ -167,7 +167,7 @@ def test_cli_scan_skip_filter(mocker, tmp_path, mock_config) -> None:
     test_file = tmp_path / "valid.py"
     test_file.write_text("print(1)\n", encoding="utf-8")
 
-    mock_engine = mocker.patch("codereview.cli.Engine")
+    mock_engine = mocker.patch("codereview.cli.scan_handler.Engine")
 
     runner.invoke(
         main,
@@ -191,7 +191,7 @@ def test_cli_init_command(mocker, tmp_path) -> None:
 
     # Create a real config object and mock load to return it
     config = Config()
-    mocker.patch("codereview.cli.Config.load", return_value=config)
+    mocker.patch("codereview.cli.init_handler.Config.load", return_value=config)
     mock_save = mocker.patch.object(Config, "save")
 
     # Inputs: Provider, Model, API Base (empty), API Key (empty), Skip (empty), Only (empty)
@@ -206,7 +206,7 @@ def test_cli_init_command(mocker, tmp_path) -> None:
 
 def test_cli_apply_patch_fuzzy(tmp_path) -> None:
     """Test that _apply_patch works even if lines have shifted."""
-    from codereview.cli import _apply_patch
+    from codereview.cli.fix_handler import _apply_patch
 
     test_file = tmp_path / "fuzzy.py"
     # Original content: 3 lines

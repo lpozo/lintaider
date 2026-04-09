@@ -6,12 +6,6 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-PROVIDER_ENV_MAP: dict[str, str] = {
-    "openai": "OPENAI_API_KEY",
-    "anthropic": "ANTHROPIC_API_KEY",
-    "gemini": "GEMINI_API_KEY",
-}
-
 
 @dataclass
 class Config:

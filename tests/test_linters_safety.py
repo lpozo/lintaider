@@ -20,7 +20,7 @@ VALID_VULN_OUTPUT = json.dumps({
             "vulnerability_id": "85151",
             "package_name": "protobuf",
             "analyzed_version": "4.25.9",
-            "CVE": "CVE-2026-0994",
+            "CVE": "CVE-2024-TEST",
             "severity": "HIGH",
             "advisory": "DoS via recursion depth bypass.",
         }
