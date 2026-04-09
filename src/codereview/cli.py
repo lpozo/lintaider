@@ -11,6 +11,8 @@ import click
 from rich.console import Console
 from rich.panel import Panel
 from rich.syntax import Syntax
+from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
+from rich.table import Table
 
 from codereview.ai import AIFixProposal, create_ai_provider
 from codereview.config import PROVIDER_ENV_MAP, Config
@@ -105,6 +107,21 @@ def init() -> None:
                 env_path.write_text(content.strip() + "\n", encoding="utf-8")
                 console.print("[green]Saved API key to .env[/green]")
 
+    skipped_str = click.prompt(
+        "Linters to skip by default (comma-separated, leave empty for none)",
+        default=",".join(config.skip_linters),
+        type=str,
+        show_default=True,
+    )
+    only_str = click.prompt(
+        "Linters to exclusively run by default (comma-separated, leave empty for all)",
+        default=",".join(config.only_linters),
+        type=str,
+        show_default=True,
+    )
+    config.skip_linters = [l.strip().lower() for l in skipped_str.split(",")] if skipped_str else []
+    config.only_linters = [l.strip().lower() for l in only_str.split(",")] if only_str else []
+
     config.provider = provider
     config.model = model
     config.api_base = api_base
@@ -126,6 +143,7 @@ def init() -> None:
 @click.option("--only", help="Comma-separated list of linters to run")
 @click.option("--skip", help="Comma-separated list of linters to skip")
 @click.option(
+    "-o",
     "--output",
     type=click.Path(path_type=Path),
     default=None,
@@ -169,33 +187,56 @@ async def _async_scan(
     """
     console.print(f"[bold blue]Scanning {target}...[/bold blue]")
 
-    # Filtering logic
+    config = Config.load()
+    
+    # Filtering logic: Args override config
+    only_list = [name.strip().lower() for name in only.split(",")] if only else config.only_linters
+    skip_list = [name.strip().lower() for name in skip.split(",")] if skip else config.skip_linters
+
     active_linters = list(LINTER_MAP.keys())
-    if only:
-        only_list = [name.strip().lower() for name in only.split(",")]
+    if only_list:
         active_linters = [name for name in active_linters if name in only_list]
-    if skip:
-        skip_list = [name.strip().lower() for name in skip.split(",")]
+    if skip_list:
         active_linters = [name for name in active_linters if name not in skip_list]
 
     # Use cast to satisfy MyPy that we are not instantiating the abstract BaseLinter
     engine = Engine(
         linters=[cast(type[BaseLinter], LINTER_MAP[name])() for name in active_linters]
     )
-    results = await engine.run_all(target)
+    
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        TaskProgressColumn(),
+        console=console,
+    ) as progress:
+        task_id = progress.add_task("[cyan]Running linters...", total=len(active_linters))
+        def progress_cb():
+            progress.update(task_id, advance=1)
+        
+        results = await engine.run_all(target, progress_callback=progress_cb)
 
     if not results:
         console.print("[bold green]No issues found! 🎉[/bold green]")
         return
 
+    # Logical Sort: by file then line
+    results.sort(key=lambda r: (str(r.file_path), r.line_start))
+
     # Per-linter summary
     from collections import Counter
 
     counts: Counter[str] = Counter(r.linter_name for r in results)
-    summary_lines = "\n".join(
-        f"  {linter}: {count}" for linter, count in sorted(counts.items())
-    )
-    console.print(f"[bold red]Found {len(results)} issues:[/bold red]\n{summary_lines}")
+    
+    table = Table(title="[bold red]Resumen de Hallazgos[/bold red]")
+    table.add_column("Linter", style="cyan", no_wrap=True)
+    table.add_column("Problemas Encontrados", justify="right", style="magenta")
+    
+    for linter, count in sorted(counts.items()):
+        table.add_row(linter, str(count))
+        
+    console.print(table)
 
     if verbose:
         for idx, result in enumerate(results):
@@ -230,21 +271,16 @@ async def _async_scan(
 @main.command()
 @click.argument("target", type=click.Path(exists=True, path_type=Path), required=False)
 @click.option(
+    "-i",
     "--input",
     "input_file",
     type=click.Path(path_type=Path),
     default=None,
     help=f"Path to the scan results JSON file (default: {SCAN_RESULT_FILE})",
 )
-@click.option("--provider", help="AI Provider override")
-@click.option("--model", help="AI Model name override")
-@click.option("--api-base", help="AI Provider API base URL override")
 def fix(  # vulture: ignore
     target: Path | None,
     input_file: Path | None,
-    provider: str | None,
-    model: str | None,
-    api_base: str | None,
 ) -> None:
     """Read scan results and interactively apply AI-suggested fixes.
 
@@ -252,15 +288,12 @@ def fix(  # vulture: ignore
     automatically on the provided target.
     """
     asyncio.run(
-        _async_fix(input_file or SCAN_RESULT_FILE, provider, model, api_base, target),
+        _async_fix(input_file or SCAN_RESULT_FILE, target),
     )
 
 
 async def _async_fix(
     input_file: Path,
-    provider_name: str | None,
-    model_name: str | None,
-    api_base: str | None,
     target: Path | None = None,
 ) -> None:
     """AI suggestion and interactive patch workflow.
@@ -269,9 +302,6 @@ async def _async_fix(
 
     Args:
         input_file: Path to the JSON scan results.
-        provider_name: Name of the AI provider to use.
-        model_name: Name of the AI model to use.
-        api_base: Optional base URL for the AI API.
         target: Optional file or directory to scan if input_file is missing.
     """
     if not input_file.exists():
@@ -300,20 +330,21 @@ async def _async_fix(
         return
 
     config = Config.load()
-    final_provider = provider_name or config.provider
-    final_model = model_name or config.model
-    final_api_base = api_base or config.api_base
-
     console.print(
         f"[bold blue]Loaded {len(results)} issues from {input_file}[/bold blue]"
     )
-    console.print(f"[dim]Using {final_provider}:{final_model}[/dim]")
+    console.print(
+        f"[dim]Using configured provider: {config.provider}:{config.model}[/dim]"
+    )
 
     try:
-        ai = create_ai_provider(final_provider, final_model, final_api_base)
+        ai = create_ai_provider(config.provider, config.model, config.api_base)
     except ValueError as exc:
         console.print(f"[bold red]Error:[/bold red] {exc}")
         return
+
+    # Logical Sort: by file then line
+    results.sort(key=lambda r: (str(r.file_path), r.line_start))
 
     # Background AI Task Orchestration with Rate Limiting
     ai_semaphore = asyncio.Semaphore(1)
@@ -339,10 +370,14 @@ async def _async_fix(
                 border_style="red",
             )
         )
+        
+        # Visual diff context
+        if result.snippet_context:
+            syntax = Syntax(result.snippet_context, "python", theme="monokai", line_numbers=False)
+            console.print(Panel(syntax, title="Original Context", border_style="yellow"))
 
-        console.print("[dim]Waiting for AI response...[/dim]")
-
-        proposals = await ai_tasks[idx]
+        with console.status("[dim]Consultando a la IA para una solución...[/dim]", spinner="dots"):
+            proposals = await ai_tasks[idx]
 
         if not proposals:
             console.print("[red]AI failed to generate solutions for this issue.[/red]")

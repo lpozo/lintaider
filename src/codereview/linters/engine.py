@@ -23,26 +23,31 @@ class Engine:
         """
         self.linters = linters
 
-    async def run_all(self, target: Path) -> list[LinterResult]:
+    async def run_all(
+        self, target: Path, progress_callback=None
+    ) -> list[LinterResult]:
         """Run all configured linters on the target in parallel using asyncio.
 
         Args:
             target: The file or directory to scan.
+            progress_callback: Optional callable called when a linter finishes.
 
         Returns:
             A combined list of all linter results.
         """
         all_results: list[LinterResult] = []
 
-        async with asyncio.TaskGroup() as group:
-            tasks = [group.create_task(linter.run(target)) for linter in self.linters]
+        tasks = [asyncio.create_task(linter.run(target)) for linter in self.linters]
 
-        for task in tasks:
+        for coro in asyncio.as_completed(tasks):
             try:
-                results = task.result()
+                results = await coro
                 all_results.extend(results)
             except Exception as exc:  # pylint: disable=broad-exception-caught
                 # Log the error but keep results from other linters
                 print(f"Linter task failed: {exc}")
+            finally:
+                if progress_callback:
+                    progress_callback()
 
         return all_results
