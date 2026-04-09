@@ -23,9 +23,7 @@ class Engine:
         """
         self.linters = linters
 
-    async def run_all(
-        self, target: Path, progress_callback=None
-    ) -> list[LinterResult]:
+    async def run_all(self, target: Path, progress_callback=None) -> list[LinterResult]:
         """Run all configured linters on the target in parallel using asyncio.
 
         Args:

@@ -4,14 +4,22 @@ import asyncio
 import difflib
 import json
 import os
+import re
+from collections import Counter
 from pathlib import Path
 from typing import cast
 
 import click
 from rich.console import Console
 from rich.panel import Panel
+from rich.progress import (
+    BarColumn,
+    Progress,
+    SpinnerColumn,
+    TaskProgressColumn,
+    TextColumn,
+)
 from rich.syntax import Syntax
-from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
 from rich.table import Table
 
 from codereview.ai import AIFixProposal, create_ai_provider
@@ -53,8 +61,8 @@ def main() -> None:
     """AI-powered code reviewer and auto-fixer."""
 
 
-@main.command()  # vulture: ignore
-def init() -> None:
+@main.command()
+def init() -> None:  # vulture: ignore
     """Initialize configuration for CodeReview."""
     config = Config.load()
 
@@ -80,32 +88,7 @@ def init() -> None:
 
     # API Key handling for Cloud providers
     if provider.lower() != "ollama":
-        env_var = PROVIDER_ENV_MAP.get(provider.lower())
-        if env_var:
-            current_key = os.getenv(env_var)
-            api_key = click.prompt(
-                f"Enter your {env_var} (leave empty to keep current or skip)",
-                default=current_key or "",
-                hide_input=True,
-            )
-            if api_key:
-                # Store in .env
-                env_path = Path(".env")
-                content = ""
-                if env_path.exists():
-                    content = env_path.read_text(encoding="utf-8")
-
-                new_line = f'{env_var}="{api_key}"'
-                if env_var in content:
-                    # Replace existing
-                    import re
-
-                    content = re.sub(f'{env_var}=".*"', new_line, content)
-                else:
-                    content += f"\n{new_line}\n"
-
-                env_path.write_text(content.strip() + "\n", encoding="utf-8")
-                console.print("[green]Saved API key to .env[/green]")
+        _update_env_api_key(provider)
 
     skipped_str = click.prompt(
         "Linters to skip by default (comma-separated, leave empty for none)",
@@ -119,8 +102,16 @@ def init() -> None:
         type=str,
         show_default=True,
     )
-    config.skip_linters = [l.strip().lower() for l in skipped_str.split(",")] if skipped_str else []
-    config.only_linters = [l.strip().lower() for l in only_str.split(",")] if only_str else []
+    config.skip_linters = (
+        [linter_name.strip().lower() for linter_name in skipped_str.split(",")]
+        if skipped_str
+        else []
+    )
+    config.only_linters = (
+        [linter_name.strip().lower() for linter_name in only_str.split(",")]
+        if only_str
+        else []
+    )
 
     config.provider = provider
     config.model = model
@@ -136,6 +127,34 @@ def init() -> None:
             border_style="green",
         )
     )
+
+
+def _update_env_api_key(provider: str) -> None:
+    """Helper to ask and update the .env file with the provider's API key."""
+    env_var = PROVIDER_ENV_MAP.get(provider.lower())
+    if not env_var:
+        return
+
+    current_key = os.getenv(env_var)
+    api_key = click.prompt(
+        f"Enter your {env_var} (leave empty to keep current or skip)",
+        default=current_key or "",
+        hide_input=True,
+    )
+    if not api_key:
+        return
+
+    env_path = Path(".env")
+    content = env_path.read_text(encoding="utf-8") if env_path.exists() else ""
+    new_line = f'{env_var}="{api_key}"'
+
+    if env_var in content:
+        content = re.sub(f'{env_var}=".*"', new_line, content)
+    else:
+        content += f"\\n{new_line}\\n"
+
+    env_path.write_text(content.strip() + "\\n", encoding="utf-8")
+    console.print("[green]Saved API key to .env[/green]")
 
 
 @main.command()
@@ -188,22 +207,14 @@ async def _async_scan(
     console.print(f"[bold blue]Scanning {target}...[/bold blue]")
 
     config = Config.load()
-    
-    # Filtering logic: Args override config
-    only_list = [name.strip().lower() for name in only.split(",")] if only else config.only_linters
-    skip_list = [name.strip().lower() for name in skip.split(",")] if skip else config.skip_linters
 
-    active_linters = list(LINTER_MAP.keys())
-    if only_list:
-        active_linters = [name for name in active_linters if name in only_list]
-    if skip_list:
-        active_linters = [name for name in active_linters if name not in skip_list]
+    active_linters = _get_active_linters(config, only, skip)
 
     # Use cast to satisfy MyPy that we are not instantiating the abstract BaseLinter
     engine = Engine(
         linters=[cast(type[BaseLinter], LINTER_MAP[name])() for name in active_linters]
     )
-    
+
     with Progress(
         SpinnerColumn(),
         TextColumn("[progress.description]{task.description}"),
@@ -211,10 +222,13 @@ async def _async_scan(
         TaskProgressColumn(),
         console=console,
     ) as progress:
-        task_id = progress.add_task("[cyan]Running linters...", total=len(active_linters))
+        task_id = progress.add_task(
+            "[cyan]Running linters...", total=len(active_linters)
+        )
+
         def progress_cb():
             progress.update(task_id, advance=1)
-        
+
         results = await engine.run_all(target, progress_callback=progress_cb)
 
     if not results:
@@ -224,18 +238,51 @@ async def _async_scan(
     # Logical Sort: by file then line
     results.sort(key=lambda r: (str(r.file_path), r.line_start))
 
-    # Per-linter summary
-    from collections import Counter
+    _print_scan_summary(results, verbose)
 
+    # Serialize to JSON
+    output.write_text(
+        json.dumps([r.to_dict() for r in results], indent=2), encoding="utf-8"
+    )
+    console.print(f"\\n[bold green]Results saved to {output}[/bold green]")
+    console.print(
+        "[dim]Run 'codereview fix' to get AI suggestions and apply patches.[/dim]"
+    )
+
+
+def _parse_linter_names(names: str | None, default: list[str]) -> list[str]:
+    """Helper to parse a comma-separated list of linter names."""
+    if not names:
+        return default
+    return [name.strip().lower() for name in names.split(",")]
+
+
+def _get_active_linters(
+    config: Config, only: str | None, skip: str | None
+) -> list[str]:
+    """Determine which linters to execute based on config and CLI overrides."""
+    only_list = _parse_linter_names(only, config.only_linters)
+    skip_list = _parse_linter_names(skip, config.skip_linters)
+
+    active_linters = list(LINTER_MAP.keys())
+    if only_list:
+        active_linters = [name for name in active_linters if name in only_list]
+    if skip_list:
+        active_linters = [name for name in active_linters if name not in skip_list]
+    return active_linters
+
+
+def _print_scan_summary(results: list[LinterResult], verbose: bool) -> None:
+    """Helper to display the tabular summary and verbose log."""
     counts: Counter[str] = Counter(r.linter_name for r in results)
-    
+
     table = Table(title="[bold red]Findings Summary[/bold red]")
     table.add_column("Linter", style="cyan", no_wrap=True)
     table.add_column("Issues Found", justify="right", style="magenta")
-    
+
     for linter, count in sorted(counts.items()):
         table.add_row(linter, str(count))
-        
+
     console.print(table)
 
     if verbose:
@@ -257,15 +304,6 @@ async def _async_scan(
                     border_style="red",
                 )
             )
-
-    # Serialize to JSON
-    output.write_text(
-        json.dumps([r.to_dict() for r in results], indent=2), encoding="utf-8"
-    )
-    console.print(f"\n[bold green]Results saved to {output}[/bold green]")
-    console.print(
-        "[dim]Run 'codereview fix' to get AI suggestions and apply patches.[/dim]"
-    )
 
 
 @main.command()
@@ -307,7 +345,8 @@ async def _async_fix(
     if not input_file.exists():
         if target:
             console.print(
-                f"[yellow]{input_file} not found. Starting automatic scan of {target}...[/yellow]"
+                f"[yellow]{input_file} not found. "
+                f"Starting automatic scan of {target}...[/yellow]"
             )
             await _async_scan(target, only=None, skip=None, output=input_file)
         else:
@@ -361,71 +400,79 @@ async def _async_fix(
     ]
 
     for idx, result in enumerate(results):
+        await _process_fix_interactive(idx, len(results), result, ai_tasks[idx])
+
+
+async def _process_fix_interactive(
+    idx: int,
+    total: int,
+    result: LinterResult,
+    ai_task: asyncio.Task[list[AIFixProposal]],
+) -> None:
+    """Helper to process a single fix interactively."""
+    console.print(
+        Panel(
+            f"[bold]{result.linter_name}[/bold] error {result.error_code} at "
+            f"[yellow]{result.file_path}:{result.line_start}[/yellow]\n"
+            f"{result.message}",
+            title=f"Linter Error {idx + 1}/{total}",
+            border_style="red",
+        )
+    )
+
+    if result.snippet_context:
+        syntax = Syntax(
+            result.snippet_context, "python", theme="monokai", line_numbers=False
+        )
+        console.print(Panel(syntax, title="Original Context", border_style="yellow"))
+
+    with console.status("[dim]Asking AI for a solution...[/dim]", spinner="dots"):
+        proposals = await ai_task
+
+    if not proposals:
+        console.print("[red]AI failed to generate solutions for this issue.[/red]")
+        return
+
+    for i, prop in enumerate(proposals, start=1):
+        syntax = Syntax(prop.code_diff, "python", theme="monokai", line_numbers=False)
         console.print(
             Panel(
-                f"[bold]{result.linter_name}[/bold] error {result.error_code} at "
-                f"[yellow]{result.file_path}:{result.line_start}[/yellow]\n"
-                f"{result.message}",
-                title=f"Linter Error {idx + 1}/{len(results)}",
-                border_style="red",
+                syntax,
+                title=f"Option {i}: {prop.explanation}",
+                border_style="green",
             )
         )
-        
-        # Visual diff context
-        if result.snippet_context:
-            syntax = Syntax(result.snippet_context, "python", theme="monokai", line_numbers=False)
-            console.print(Panel(syntax, title="Original Context", border_style="yellow"))
 
-        with console.status("[dim]Asking AI for a solution...[/dim]", spinner="dots"):
-            proposals = await ai_tasks[idx]
+    choice = await asyncio.to_thread(
+        click.prompt,
+        "Select an option to apply (1, 2, 3...) or 's' to skip",
+        type=str,
+        default="s",
+    )
+    choice = choice.lower()
 
-        if not proposals:
-            console.print("[red]AI failed to generate solutions for this issue.[/red]")
-            continue
+    if choice == "s" or not choice.isdigit():
+        console.print("[dim]Skipping...[/dim]\n")
+        return
 
-        for i, prop in enumerate(proposals, start=1):
-            syntax = Syntax(
-                prop.code_diff, "python", theme="monokai", line_numbers=False
-            )
-            console.print(
-                Panel(
-                    syntax,
-                    title=f"Option {i}: {prop.explanation}",
-                    border_style="green",
-                )
-            )
-
-        # Non-blocking prompt so other AI tasks can continue in the background
-        choice = await asyncio.to_thread(
-            click.prompt,
-            "Select an option to apply (1, 2, 3...) or 's' to skip",
-            type=str,
-            default="s",
+    idx_choice = int(choice) - 1
+    if 0 <= idx_choice < len(proposals):
+        selected = proposals[idx_choice]
+        applied = _apply_patch(
+            result.file_path,
+            result.line_start,
+            result.snippet_context,
+            selected.code_diff,
         )
-        choice = choice.lower()
-
-        if choice == "s" or not choice.isdigit():
-            console.print("[dim]Skipping...[/dim]\n")
-            continue
-
-        idx_choice = int(choice) - 1
-        if 0 <= idx_choice < len(proposals):
-            selected = proposals[idx_choice]
-            applied = _apply_patch(
-                result.file_path,
-                result.line_start,
-                result.snippet_context,
-                selected.code_diff,
-            )
-            if applied:
-                console.print("[bold green]Patch applied successfully![/bold green]\n")
-            else:
-                console.print(
-                    "[bold yellow]Could not apply patch accurately. "
-                    "Skipping...[/bold yellow]\n"
-                )
+        if applied:
+            console.print("[bold green]Patch applied successfully![/bold green]\n")
         else:
-            console.print("[red]Invalid choice. Skipping...[/red]\n")
+            console.print(
+                "[bold yellow]Could not apply patch accurately. "
+                "Skipping...[/bold yellow]\n"
+            )
+    else:
+        console.print("[red]Invalid choice. Skipping...[/red]\n")
 
 
 def _apply_patch(

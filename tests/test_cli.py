@@ -62,7 +62,7 @@ def test_cli_scan_with_issues(mocker, tmp_path, mock_config) -> None:
     result = runner.invoke(main, ["scan", str(test_file), "--output", str(output_file)])
 
     assert result.exit_code == 0
-    assert "Found 1 issues" in result.output
+    assert "Findings Summary" in result.output
     assert "Results saved to" in result.output
     assert output_file.exists()
     data = json.loads(output_file.read_text(encoding="utf-8"))
@@ -194,8 +194,8 @@ def test_cli_init_command(mocker, tmp_path) -> None:
     mocker.patch("codereview.cli.Config.load", return_value=config)
     mock_save = mocker.patch.object(Config, "save")
 
-    # Inputs: Provider, Model, API Base (empty), API Key (empty)
-    result = runner.invoke(main, ["init"], input="openai\ngpt-4\n\n\n")
+    # Inputs: Provider, Model, API Base (empty), API Key (empty), Skip (empty), Only (empty)
+    result = runner.invoke(main, ["init"], input="openai\ngpt-4\n\n\n\n\n")
 
     assert result.exit_code == 0
     assert "Configuration Saved" in result.output
