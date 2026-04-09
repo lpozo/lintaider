@@ -1,82 +1,82 @@
 # CodeReview: AI-Powered Auto-Fixer
 
-**CodeReview** es una herramienta de auditoría de código avanzada que combina múltiples linters con el poder de la Inteligencia Artificial (LLMs) para encontrar y corregir problemas de forma automática y concurrente.
+**CodeReview** is an advanced code auditing tool that combines multiple linters with the power of Artificial Intelligence (LLMs) to automatically and concurrently find and fix issues.
 
-## Características
+## Features
 
--   **Motor Asíncrono**: Escanea tu código con múltiples linters en paralelo usando `asyncio`.
--   **IA en Segundo Plano**: Genera sugerencias de corrección mientras revisas los hallazgos previos.
--   **Configuración Profesional**: Comando `init` para configurar proveedores (OpenAI, Anthropic, Ollama, Gemini) de forma persistente.
--   **Multi-Linter**: Soporte nativo para Ruff, Pylint, Bandit, MyPy, Pyright, Semgrep, Vulture, Radon y Safety.
--   **Auto-Fixer Inteligente**: Aplica parches sugeridos por la IA con algoritmos de *Fuzzy Matching*.
+-   **Asynchronous Engine**: Scans your code with multiple linters in parallel using `asyncio`.
+-   **Background AI**: Generates fix suggestions while you review previous findings.
+-   **Professional Configuration**: `init` command to configure providers (OpenAI, Anthropic, Ollama, Gemini) persistently.
+-   **Multi-Linter**: Native support for Ruff, Pylint, Bandit, MyPy, Pyright, Semgrep, Vulture, Radon, and Safety.
+-   **Smart Auto-Fixer**: Applies AI-suggested patches using *Fuzzy Matching* algorithms.
 
-## Instalación
+## Installation
 
-Requiere [uv](https://github.com/astral-sh/uv) para la gestión de dependencias:
+Requires [uv](https://github.com/astral-sh/uv) for dependency management:
 
 ```bash
-git clone <url-del-repositorio>
+git clone <repository-url>
 cd codereview
 uv sync
 ```
 
-## Configuración Inicial
+## Initial Setup
 
-Antes de empezar, configura tu proveedor de IA preferido:
+Before diving in, configure your preferred AI provider:
 
 ```bash
 uv run codereview init
 ```
 
-Esto creará un archivo `codereview.toml` con tus preferencias y un archivo `.env` para tus API Keys.
+This will create a `codereview.toml` file with your preferences and a `.env` file for your API keys.
 
-## Uso rápido
+## Quick Start
 
-### 1. Escanear el código
-Detecta problemas en archivos o directorios:
+### 1. Scan the code
+Detect issues in files or directories:
 
 ```bash
 uv run codereview scan src/ -v
 ```
 
-### 2. Aplicar correcciones
-Inicia el flujo interactivo. Si no has corrido `scan` antes, puedes pasar el target directamente:
+### 2. Apply fixes
+Start the interactive flow. If you haven't run `scan` before, you can pass the target directly:
 
 ```bash
-# Escanea y luego inicia la corrección en un solo paso
+# Scans and then starts the fixer in a single step
 uv run codereview fix src/
 ```
 
-Si ya tienes un archivo `scan-result.json`, simplemente ejecuta:
+If you already have a `scan-result.json` file, simply run:
 
 ```bash
 uv run codereview fix
 ```
 
-### Opciones de filtrado
-Puedes ejecutar linters específicos o excluir algunos:
+### Filtering options
+You can exclusively run specific linters or skip others:
 
 ```bash
-# Solo ejecutar Ruff y MyPy
+# Only run Ruff and MyPy
 uv run codereview scan . --only ruff,mypy
 
-# Omitir Safety (escaneo de dependencias)
+# Skip Safety (dependency scanning)
 uv run codereview scan . --skip safety
 ```
 
-## Linters Soportados
+## Supported Linters
 
-| Linter | Especialidad |
+| Linter | Specialty |
 | :--- | :--- |
-| **Ruff** | Estilo y errores comunes (Súper rápido) |
-| **Pylint** | Análisis estático profundo y mantenibilidad |
-| **Bandit** | Vulnerabilidades de seguridad en el código |
-| **MyPy** | Chequeo de tipos estático oficial |
-| **Pyright** | Chequeo de tipos ultra-rápido de Microsoft |
-| **Semgrep** | Análisis semántico y seguridad avanzada |
-| **Vulture** | Detección de código muerto y funciones sin uso |
-| **Radon** | Métrica de Complejidad Ciclomática (Mantenibilidad) |
-| **Safety** | Escaneo de vulnerabilidades en dependencias instaladas |
+| **Ruff** | Style and common errors (Blazing fast) |
+| **Pylint** | Deep static analysis and maintainability |
+| **Bandit** | Code security vulnerabilities |
+| **MyPy** | Official static type checking |
+| **Pyright** | Ultra-fast Microsoft type checking |
+| **Semgrep** | Semantic analysis and advanced security |
+| **Vulture** | Dead code and unused function detection |
+| **Radon** | Cyclomatic Complexity metric (Maintainability) |
+| **Safety** | Vulnerability scanning in installed dependencies |
 
 ## Testing
 
@@ -85,4 +85,4 @@ uv run pytest
 ```
 
 ---
-*Desarrollado con arquitectura asíncrona avanzada para una experiencia instantánea.*
+*Developed with advanced asynchronous architecture for an instant experience.*

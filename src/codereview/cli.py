@@ -229,9 +229,9 @@ async def _async_scan(
 
     counts: Counter[str] = Counter(r.linter_name for r in results)
     
-    table = Table(title="[bold red]Resumen de Hallazgos[/bold red]")
+    table = Table(title="[bold red]Findings Summary[/bold red]")
     table.add_column("Linter", style="cyan", no_wrap=True)
-    table.add_column("Problemas Encontrados", justify="right", style="magenta")
+    table.add_column("Issues Found", justify="right", style="magenta")
     
     for linter, count in sorted(counts.items()):
         table.add_row(linter, str(count))
@@ -376,7 +376,7 @@ async def _async_fix(
             syntax = Syntax(result.snippet_context, "python", theme="monokai", line_numbers=False)
             console.print(Panel(syntax, title="Original Context", border_style="yellow"))
 
-        with console.status("[dim]Consultando a la IA para una solución...[/dim]", spinner="dots"):
+        with console.status("[dim]Asking AI for a solution...[/dim]", spinner="dots"):
             proposals = await ai_tasks[idx]
 
         if not proposals:
