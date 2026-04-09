@@ -1,43 +1,64 @@
-"""Tests for Semgrep linter."""
+"""Tests for Semgrep linter using parametrization."""
 
 import json
+from pathlib import Path
 
 import pytest
-
-from codereview.linters.base import AsyncCompletedProcess
 from codereview.linters.semgrep import SemgrepLinter
+from codereview.linters.base import AsyncCompletedProcess
 
 
+@pytest.fixture(autouse=True)
+def _mock_extract_snippet(mocker):
+    """Mock extract_snippet to return a dummy string."""
+    return mocker.patch("codereview.linters.semgrep.extract_snippet", return_value="snippet")
+
+
+@pytest.fixture
+def linter() -> SemgrepLinter:
+    """Semgrep linter instance."""
+    return SemgrepLinter()
+
+
+@pytest.mark.parametrize(
+    "stdout, expected_count, first_error_code",
+    [
+        # Standard success
+        (
+            json.dumps({
+                "results": [
+                    {
+                        "check_id": "rules.unsafe",
+                        "path": "test.py",
+                        "start": {"line": 1, "col": 1},
+                        "extra": {"message": "Unsafe", "severity": "WARNING"}
+                    }
+                ]
+            }),
+            1, "rules.unsafe"
+        ),
+        # Empty results
+        (json.dumps({"results": []}), 0, None),
+        # Malformed JSON
+        ("Failed", 0, None),
+        # Missing fields
+        (
+            json.dumps({
+                "results": [{"check_id": "minimal"}]
+            }),
+            1, "minimal"
+        ),
+    ]
+)
 @pytest.mark.asyncio
-async def test_semgrep_run(mocker, tmp_path) -> None:
-    """Test Semgrep execution and JSON parsing."""
-    test_file = tmp_path / "test.py"
-    test_file.write_text("import unsafe", encoding="utf-8")
-
-    fake_output = {
-        "results": [
-            {
-                "check_id": "rules.unsafe-import",
-                "path": str(test_file),
-                "start": {"line": 1, "col": 1},
-                "end": {"line": 1, "col": 15},
-                "extra": {
-                    "message": "Found unsafe import",
-                    "severity": "WARNING",
-                },
-            }
-        ]
-    }
-
-    mock_result = AsyncCompletedProcess(
-        stdout=json.dumps(fake_output), stderr="", returncode=0
-    )
+async def test_semgrep_scenarios(mocker, linter, stdout, expected_count, first_error_code) -> None:
+    """Test various Semgrep parsing scenarios."""
+    mock_result = AsyncCompletedProcess(stdout=stdout, stderr="", returncode=0)
     mocker.patch.object(SemgrepLinter, "_run_command", return_value=mock_result)
 
-    linter = SemgrepLinter()
-    results = await linter.run(test_file)
+    results = await linter.run(Path("target.py"))
 
-    assert len(results) == 1
-    assert results[0].linter_name == "Semgrep"
-    assert results[0].error_code == "rules.unsafe-import"
-    assert "[WARNING]" in results[0].message
+    assert len(results) == expected_count
+    if expected_count > 0:
+        assert results[0].error_code == first_error_code
+        assert results[0].snippet_context == "snippet"

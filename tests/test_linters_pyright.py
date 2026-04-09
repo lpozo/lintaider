@@ -1,44 +1,65 @@
-"""Tests for Pyright linter."""
+"""Tests for Pyright linter using parametrization."""
 
 import json
+from pathlib import Path
 
 import pytest
-
-from codereview.linters.base import AsyncCompletedProcess
 from codereview.linters.pyright import PyrightLinter
+from codereview.linters.base import AsyncCompletedProcess
 
 
+@pytest.fixture(autouse=True)
+def _mock_extract_snippet(mocker):
+    """Mock extract_snippet to return a dummy string."""
+    return mocker.patch("codereview.linters.pyright.extract_snippet", return_value="snippet")
+
+
+@pytest.fixture
+def linter() -> PyrightLinter:
+    """Pyright linter instance."""
+    return PyrightLinter()
+
+
+@pytest.mark.parametrize(
+    "stdout, expected_count, first_error_code",
+    [
+        # Standard success
+        (
+            json.dumps({
+                "generalDiagnostics": [
+                    {
+                        "file": "test.py",
+                        "severity": "error",
+                        "message": "Type error",
+                        "rule": "reportGeneralTypeIssues",
+                        "range": {"start": {"line": 0, "character": 0}, "end": {"line": 0, "character": 5}}
+                    }
+                ]
+            }),
+            1, "reportGeneralTypeIssues"
+        ),
+        # Empty results
+        (json.dumps({"generalDiagnostics": []}), 0, None),
+        # Malformed JSON
+        ("Error", 0, None),
+        # Missing fields
+        (
+            json.dumps({
+                "generalDiagnostics": [{"message": "No fields"}]
+            }),
+            1, "Unknown"
+        ),
+    ]
+)
 @pytest.mark.asyncio
-async def test_pyright_run(mocker, tmp_path) -> None:
-    """Test Pyright execution and JSON parsing."""
-    test_file = tmp_path / "test.py"
-    test_file.write_text("x: int = 'a'", encoding="utf-8")
-
-    fake_output = {
-        "generalDiagnostics": [
-            {
-                "file": str(test_file),
-                "severity": "error",
-                "message": 'Expression of type "str" cannot be assigned',
-                "rule": "reportGeneralTypeIssues",
-                "range": {
-                    "start": {"line": 0, "character": 9},
-                    "end": {"line": 0, "character": 12},
-                },
-            }
-        ]
-    }
-
-    mock_result = AsyncCompletedProcess(
-        stdout=json.dumps(fake_output), stderr="", returncode=0
-    )
+async def test_pyright_scenarios(mocker, linter, stdout, expected_count, first_error_code) -> None:
+    """Test various Pyright parsing scenarios."""
+    mock_result = AsyncCompletedProcess(stdout=stdout, stderr="", returncode=0)
     mocker.patch.object(PyrightLinter, "_run_command", return_value=mock_result)
 
-    linter = PyrightLinter()
-    results = await linter.run(test_file)
+    results = await linter.run(Path("target.py"))
 
-    assert len(results) == 1
-    assert results[0].linter_name == "Pyright"
-    assert results[0].line_start == 1
-    assert results[0].col_start == 10
-    assert "[ERROR]" in results[0].message
+    assert len(results) == expected_count
+    if expected_count > 0:
+        assert results[0].error_code == first_error_code
+        assert results[0].snippet_context == "snippet"

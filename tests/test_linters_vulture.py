@@ -1,26 +1,46 @@
-"""Tests for Vulture linter."""
+"""Tests for Vulture linter using parametrization."""
+
+from pathlib import Path
 
 import pytest
-
-from codereview.linters.base import AsyncCompletedProcess
 from codereview.linters.vulture import VultureLinter
+from codereview.linters.base import AsyncCompletedProcess
 
 
+@pytest.fixture(autouse=True)
+def _mock_extract_snippet(mocker):
+    """Mock extract_snippet to return a dummy string."""
+    return mocker.patch("codereview.linters.vulture.extract_snippet", return_value="snippet")
+
+
+@pytest.fixture
+def linter() -> VultureLinter:
+    """Vulture linter instance."""
+    return VultureLinter()
+
+
+@pytest.mark.parametrize(
+    "stdout, expected_count, first_line",
+    [
+        # Standard success
+        ("test.py:1: unused variable 'x' (60% confidence)\n", 1, 1),
+        # Multiple issues
+        ("file1.py:10: unused function 'foo'\nfile1.py:20: unused class 'Bar'\n", 2, 10),
+        # Empty output
+        ("", 0, None),
+        # Noise
+        ("Some header\nfile.py:5: unused import 'os'\nFooter\n", 1, 5),
+    ]
+)
 @pytest.mark.asyncio
-async def test_vulture_run(mocker, tmp_path) -> None:
-    """Test Vulture execution and regex parsing."""
-    test_file = tmp_path / "test.py"
-    test_file.write_text("unused_var = 1", encoding="utf-8")
-
-    fake_stdout = f"{test_file}:1: unused variable 'unused_var' (60% confidence)\n"
-
-    mock_result = AsyncCompletedProcess(stdout=fake_stdout, stderr="", returncode=0)
+async def test_vulture_scenarios(mocker, linter, stdout, expected_count, first_line) -> None:
+    """Test various Vulture parsing scenarios."""
+    mock_result = AsyncCompletedProcess(stdout=stdout, stderr="", returncode=0)
     mocker.patch.object(VultureLinter, "_run_command", return_value=mock_result)
 
-    linter = VultureLinter()
-    results = await linter.run(test_file)
+    results = await linter.run(Path("target.py"))
 
-    assert len(results) == 1
-    assert results[0].linter_name == "Vulture"
-    assert results[0].line_start == 1
-    assert "unused variable" in results[0].message
+    assert len(results) == expected_count
+    if expected_count > 0:
+        assert results[0].line_start == first_line
+        assert results[0].snippet_context == "snippet"

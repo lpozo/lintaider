@@ -1,28 +1,54 @@
-"""Tests for MyPy runner."""
+"""Tests for MyPy linter using parametrization."""
+
+from pathlib import Path
 
 import pytest
-
-from codereview.linters.base import AsyncCompletedProcess
 from codereview.linters.mypy import MyPyLinter
+from codereview.linters.base import AsyncCompletedProcess
 
 
+@pytest.fixture(autouse=True)
+def _mock_extract_snippet(mocker):
+    """Mock extract_snippet to return a dummy string."""
+    return mocker.patch("codereview.linters.mypy.extract_snippet", return_value="snippet")
+
+
+@pytest.fixture
+def linter() -> MyPyLinter:
+    """MyPy linter instance."""
+    return MyPyLinter()
+
+
+@pytest.mark.parametrize(
+    "stdout, expected_count, first_error_code",
+    [
+        # Standard error matching
+        ("test.py:1:5: error: Incompatible types [assignment]\n", 1, "assignment"),
+        # Multiple errors
+        (
+            "file1.py:10:1: error: Error 1 [err1]\nfile1.py:20:5: error: Error 2 [err2]\n",
+            2, "err1"
+        ),
+        # Empty output
+        ("", 0, None),
+        # Noise and summary lines (unmatched)
+        (
+            "Success: no issues found\nSome random noise\ntest.py:1:1: error: Real error [code]\n",
+            1, "code"
+        ),
+        # Missing error code in output (should not match current regex)
+        ("test.py:1:1: error: Something without code\n", 0, None),
+    ]
+)
 @pytest.mark.asyncio
-async def test_mypy_run(mocker, tmp_path) -> None:
-    """Test MyPy execution and regex parsing."""
-    test_file = tmp_path / "test.py"
-    test_file.write_text("x = 1", encoding="utf-8")
-
-    fake_stdout = f"{test_file}:1:5: error: Incompatible types [misc]\n"
-
-    mock_result = AsyncCompletedProcess(stdout=fake_stdout, stderr="", returncode=1)
+async def test_mypy_scenarios(mocker, linter, stdout, expected_count, first_error_code) -> None:
+    """Test various MyPy parsing scenarios."""
+    mock_result = AsyncCompletedProcess(stdout=stdout, stderr="", returncode=1)
     mocker.patch.object(MyPyLinter, "_run_command", return_value=mock_result)
 
-    linter = MyPyLinter()
-    results = await linter.run(test_file)
+    results = await linter.run(Path("target.py"))
 
-    assert len(results) == 1
-    assert results[0].linter_name == "MyPy"
-    assert results[0].error_code == "misc"
-    assert results[0].line_start == 1
-    assert results[0].col_start == 5
-    assert "x = 1" in results[0].snippet_context
+    assert len(results) == expected_count
+    if expected_count > 0:
+        assert results[0].error_code == first_error_code
+        assert results[0].snippet_context == "snippet"

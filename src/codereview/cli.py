@@ -47,7 +47,7 @@ def main() -> None:
     """AI-powered code reviewer and auto-fixer."""
 
 
-@main.command()
+@main.command()  # vulture: ignore
 def init() -> None:
     """Initialize configuration for CodeReview."""
     config = Config.load()
@@ -134,7 +134,7 @@ def init() -> None:
     default=False,
     help="Print a detailed report of every issue found.",
 )
-def scan(
+def scan(  # vulture: ignore
     target: Path,
     only: str | None,
     skip: str | None,
@@ -226,7 +226,7 @@ async def _async_scan(
 @click.option("--provider", help="AI Provider override")
 @click.option("--model", help="AI Model name override")
 @click.option("--api-base", help="AI Provider API base URL override")
-def fix(
+def fix(  # vulture: ignore
     input_file: Path | None,
     provider: str | None,
     model: str | None,

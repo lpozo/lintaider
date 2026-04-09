@@ -7,7 +7,7 @@ from pathlib import Path
 from codereview.linters.result import LinterResult
 
 
-@dataclass
+@dataclass  # pylint: disable=too-few-public-methods
 class AIFixProposal:
     """A proposed fix from the AI."""
 
@@ -15,6 +15,7 @@ class AIFixProposal:
     code_diff: str
 
 
+# pylint: disable=too-few-public-methods
 class BaseAIProvider(abc.ABC):
     """Abstract base class for AI providers."""
 

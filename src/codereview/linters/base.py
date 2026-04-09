@@ -8,7 +8,7 @@ from pathlib import Path
 from codereview.linters.result import LinterResult
 
 
-@dataclass
+@dataclass  # pylint: disable=too-few-public-methods
 class AsyncCompletedProcess:
     """Mock-like class for asyncio.subprocess results."""
 

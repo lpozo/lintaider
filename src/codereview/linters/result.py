@@ -1,8 +1,8 @@
 """Data models for the code reviewer."""
 
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Self
 
 
 # pylint: disable=too-many-instance-attributes
@@ -34,20 +34,12 @@ class LinterResult:
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize to a JSON-compatible dict."""
-        return {
-            "file_path": str(self.file_path),
-            "line_start": self.line_start,
-            "line_end": self.line_end,
-            "col_start": self.col_start,
-            "col_end": self.col_end,
-            "linter_name": self.linter_name,
-            "error_code": self.error_code,
-            "message": self.message,
-            "snippet_context": self.snippet_context,
-        }
+        data = asdict(self)
+        data["file_path"] = str(data["file_path"])
+        return data
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "LinterResult":
+    def from_dict(cls, data: dict[str, Any]) -> Self:
         """Reconstruct a LinterResult from a dict (e.g., loaded from JSON)."""
         return cls(
             file_path=Path(data["file_path"]),

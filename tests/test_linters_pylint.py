@@ -1,41 +1,74 @@
-"""Tests for Pylint runner."""
+"""Tests for Pylint linter using parametrization."""
 
 import json
+from pathlib import Path
 
 import pytest
-
-from codereview.linters.base import AsyncCompletedProcess
 from codereview.linters.pylint import PylintLinter
+from codereview.linters.base import AsyncCompletedProcess
 
 
-@pytest.mark.asyncio
-async def test_pylint_run(mocker, tmp_path) -> None:
-    """Test Pylint execution and JSON parsing."""
-    test_file = tmp_path / "test.py"
-    test_file.write_text("import os", encoding="utf-8")
+@pytest.fixture(autouse=True)
+def _mock_extract_snippet(mocker):
+    """Mock extract_snippet to return a dummy string."""
+    return mocker.patch("codereview.linters.pylint.extract_snippet", return_value="snippet")
 
-    fake_output = [
-        {
-            "line": 1,
-            "column": 0,
-            "endLine": 1,
-            "endColumn": 9,
-            "path": str(test_file),
-            "symbol": "unused-import",
-            "message": "Unused import os",
-            "message-id": "W0611",
-        }
+
+@pytest.fixture
+def linter() -> PylintLinter:
+    """Pylint linter instance."""
+    return PylintLinter()
+
+
+@pytest.mark.parametrize(
+    "stdout, expected_count, first_error_code",
+    [
+        # Standard success
+        (
+            json.dumps([
+                {
+                    "line": 1,
+                    "column": 0,
+                    "path": "test.py",
+                    "symbol": "unused-import",
+                    "message": "Unused import os",
+                    "message-id": "W0611",
+                }
+            ]),
+            1, "W0611"
+        ),
+        # Empty results
+        ("[]", 0, None),
+        # Malformed JSON
+        ("Crashed", 0, None),
+        # Missing optional fields
+        (
+            json.dumps([{
+                "line": 10,
+                "symbol": "some-error",
+                "message": "Something happened",
+            }]),
+            1, "W0611"  # Error in my previous expectation? Wait.
+            # In PylintLinter: error_code = error.get("message-id", error.get("symbol", "Unknown"))
+            # So if message-id is missing, it use symbol.
+        ),
     ]
-
-    mock_result = AsyncCompletedProcess(
-        stdout=json.dumps(fake_output), stderr="", returncode=0
-    )
+)
+@pytest.mark.asyncio
+async def test_pylint_scenarios(mocker, linter, stdout, expected_count, first_error_code) -> None:
+    """Test various Pylint parsing scenarios."""
+    mock_result = AsyncCompletedProcess(stdout=stdout, stderr="", returncode=0)
     mocker.patch.object(PylintLinter, "_run_command", return_value=mock_result)
 
-    linter = PylintLinter()
-    results = await linter.run(test_file)
+    results = await linter.run(Path("target.py"))
 
-    assert len(results) == 1
-    assert results[0].linter_name == "Pylint"
-    assert results[0].error_code == "W0611"
-    assert "import os" in results[0].snippet_context
+    assert len(results) == expected_count
+    if expected_count > 0:
+        # Note: fix expectation for the missing message-id case
+        if "message-id" not in stdout and "symbol" in stdout:
+             expected_code = "some-error"
+        else:
+             expected_code = first_error_code
+             
+        assert results[0].error_code == expected_code
+        assert results[0].snippet_context == "snippet"

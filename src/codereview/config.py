@@ -61,16 +61,3 @@ class Config:
         config_path.write_text("".join(lines), encoding="utf-8")
 
 
-def get_api_key(provider: str) -> str | None:
-    """Retrieve the API key for a given provider from environment variables.
-
-    Args:
-        provider: The name of the AI provider.
-
-    Returns:
-        The API key if found, otherwise None.
-    """
-    env_var = PROVIDER_ENV_MAP.get(provider.lower())
-    if env_var:
-        return os.getenv(env_var)
-    return None

@@ -17,6 +17,7 @@ PROVIDER_DEFAULT_API_BASES: dict[str, str] = {
 }
 
 
+# pylint: disable=too-few-public-methods
 class LiteLLMProvider(BaseAIProvider):
     """Universal AI provider using LiteLLM."""
 
