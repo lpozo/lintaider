@@ -14,7 +14,14 @@ class PylintLinter(BaseLinter):
     name = "Pylint"
 
     def build_command(self, target: Path) -> list[str]:
-        """Build the Pylint command for the target path."""
+        """Build the Pylint command for the target path.
+
+        Args:
+            target: The file or directory to scan.
+
+        Returns:
+            A list of command arguments.
+        """
         return [
             "uv",
             "run",
@@ -28,7 +35,15 @@ class PylintLinter(BaseLinter):
         process_result: AsyncCompletedProcess,
         target: Path,
     ) -> list[LinterResult]:
-        """Parse Pylint JSON output."""
+        """Parse Pylint JSON output.
+
+        Args:
+            process_result: The completed process result.
+            target: The target that was scanned.
+
+        Returns:
+            A list of standardized linter results.
+        """
 
         try:
             errors = json.loads(process_result.stdout)

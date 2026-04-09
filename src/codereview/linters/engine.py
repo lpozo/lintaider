@@ -17,6 +17,9 @@ class Engine:
 
         Args:
             linters: A list of linter instances to execute.
+
+        Returns:
+            None
         """
         self.linters = linters
 

@@ -14,7 +14,14 @@ class RuffLinter(BaseLinter):
     name = "Ruff"
 
     def build_command(self, target: Path) -> list[str]:
-        """Build the Ruff command for the target path."""
+        """Build the Ruff command for the target path.
+
+        Args:
+            target: The file or directory to scan.
+
+        Returns:
+            A list of command arguments.
+        """
         return [
             "uv",
             "run",
@@ -29,7 +36,15 @@ class RuffLinter(BaseLinter):
         process_result: AsyncCompletedProcess,
         target: Path,
     ) -> list[LinterResult]:
-        """Parse Ruff JSON output."""
+        """Parse Ruff JSON output.
+
+        Args:
+            process_result: The completed process result.
+            target: The target that was scanned.
+
+        Returns:
+            A list of standardized linter results.
+        """
         # pylint: disable=too-many-locals
 
         try:

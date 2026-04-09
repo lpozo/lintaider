@@ -14,7 +14,14 @@ class MyPyLinter(BaseLinter):
     name = "MyPy"
 
     def build_command(self, target: Path) -> list[str]:
-        """Build the MyPy command for the target path."""
+        """Build the MyPy command for the target path.
+
+        Args:
+            target: The file or directory to scan.
+
+        Returns:
+            A list of command arguments.
+        """
         return [
             "uv",
             "run",
@@ -30,7 +37,15 @@ class MyPyLinter(BaseLinter):
         process_result: AsyncCompletedProcess,
         target: Path,
     ) -> list[LinterResult]:
-        """Parse MyPy text output."""
+        """Parse MyPy text output.
+
+        Args:
+            process_result: The completed process result.
+            target: The target that was scanned.
+
+        Returns:
+            A list of standardized linter results.
+        """
 
         pattern = re.compile(
             r"^(?P<file>.+?):(?P<line>\d+):(?P<col>\d+):\s*"

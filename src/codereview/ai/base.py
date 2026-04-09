@@ -33,7 +33,14 @@ class BaseAIProvider(abc.ABC):
         """
 
     def _get_prompts(self, result: LinterResult) -> tuple[str, str]:
-        """Construct the system and user prompts for the AI."""
+        """Construct the system and user prompts for the AI.
+
+        Args:
+            result: The linter result to fix.
+
+        Returns:
+            A tuple containing (system_prompt, user_prompt).
+        """
         # Use absolute path relative to this file's parent (ai/)
         prompts_dir = Path(__file__).parent / "prompts"
         system_prompt = (prompts_dir / "system.txt").read_text(encoding="utf-8")

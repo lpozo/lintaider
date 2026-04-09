@@ -51,6 +51,9 @@ class Config:
 
         Args:
             path: Path to the configuration file. Defaults to codereview.toml.
+
+        Returns:
+            None
         """
         config_path = path or Path("codereview.toml")
         lines = ["[ai]\n"]

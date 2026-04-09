@@ -33,14 +33,25 @@ class LinterResult:
     snippet_context: str = ""
 
     def to_dict(self) -> dict[str, Any]:
-        """Serialize to a JSON-compatible dict."""
+        """Serialize to a JSON-compatible dict.
+
+        Returns:
+            A dictionary containing serialized linter result data.
+        """
         data = asdict(self)
         data["file_path"] = str(data["file_path"])
         return data
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Self:
-        """Reconstruct a LinterResult from a dict (e.g., loaded from JSON)."""
+        """Reconstruct a LinterResult from a dict (e.g., loaded from JSON).
+
+        Args:
+            data: The dictionary containing linter result data.
+
+        Returns:
+            A new LinterResult instance.
+        """
         return cls(
             file_path=Path(data["file_path"]),
             line_start=data["line_start"],

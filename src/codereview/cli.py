@@ -21,7 +21,9 @@ from codereview.linters import (
     MyPyLinter,
     PylintLinter,
     PyrightLinter,
+    RadonLinter,
     RuffLinter,
+    SafetyLinter,
     SemgrepLinter,
     VultureLinter,
 )
@@ -37,6 +39,8 @@ LINTER_MAP: dict[str, type[BaseLinter]] = {
     "pyright": PyrightLinter,
     "semgrep": SemgrepLinter,
     "vulture": VultureLinter,
+    "radon": RadonLinter,
+    "safety": SafetyLinter,
 }
 
 SCAN_RESULT_FILE = Path("scan-result.json")
@@ -154,7 +158,15 @@ async def _async_scan(
     output: Path,
     verbose: bool = False,
 ) -> None:
-    """Run all configured linters and write results to a JSON file."""
+    """Run all configured linters and write results to a JSON file.
+
+    Args:
+        target: The file or directory to scan.
+        only: Comma-separated list of linters to run, or None for all.
+        skip: Comma-separated list of linters to skip, or None.
+        output: Path where the JSON results will be saved.
+        verbose: If True, prints a detailed report to the console.
+    """
     console.print(f"[bold blue]Scanning {target}...[/bold blue]")
 
     # Filtering logic
@@ -216,6 +228,7 @@ async def _async_scan(
 
 
 @main.command()
+@click.argument("target", type=click.Path(exists=True, path_type=Path), required=False)
 @click.option(
     "--input",
     "input_file",
@@ -227,14 +240,19 @@ async def _async_scan(
 @click.option("--model", help="AI Model name override")
 @click.option("--api-base", help="AI Provider API base URL override")
 def fix(  # vulture: ignore
+    target: Path | None,
     input_file: Path | None,
     provider: str | None,
     model: str | None,
     api_base: str | None,
 ) -> None:
-    """Read scan results and interactively apply AI-suggested fixes."""
+    """Read scan results and interactively apply AI-suggested fixes.
+
+    If the input results file does not exist, a scan will be performed
+    automatically on the provided target.
+    """
     asyncio.run(
-        _async_fix(input_file or SCAN_RESULT_FILE, provider, model, api_base),
+        _async_fix(input_file or SCAN_RESULT_FILE, provider, model, api_base, target),
     )
 
 
@@ -243,14 +261,31 @@ async def _async_fix(
     provider_name: str | None,
     model_name: str | None,
     api_base: str | None,
+    target: Path | None = None,
 ) -> None:
-    """AI suggestion and interactive patch workflow."""
+    """AI suggestion and interactive patch workflow.
+
+    If the results file is missing and a target is provided, it triggers a scan.
+
+    Args:
+        input_file: Path to the JSON scan results.
+        provider_name: Name of the AI provider to use.
+        model_name: Name of the AI model to use.
+        api_base: Optional base URL for the AI API.
+        target: Optional file or directory to scan if input_file is missing.
+    """
     if not input_file.exists():
-        console.print(
-            f"[bold red]Error:[/bold red] {input_file} not found. "
-            "Run 'codereview scan <target>' first."
-        )
-        return
+        if target:
+            console.print(
+                f"[yellow]{input_file} not found. Starting automatic scan of {target}...[/yellow]"
+            )
+            await _async_scan(target, only=None, skip=None, output=input_file)
+        else:
+            console.print(
+                f"[bold red]Error:[/bold red] {input_file} not found.\n"
+                "Please provide a target to scan: [bold]codereview fix <target>[/bold]"
+            )
+            return
 
     try:
         data = json.loads(input_file.read_text(encoding="utf-8"))

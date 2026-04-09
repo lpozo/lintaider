@@ -14,7 +14,14 @@ class PyrightLinter(BaseLinter):
     name = "Pyright"
 
     def build_command(self, target: Path) -> list[str]:
-        """Build the Pyright command for the target path."""
+        """Build the Pyright command for the target path.
+
+        Args:
+            target: The file or directory to scan.
+
+        Returns:
+            A list of command arguments.
+        """
         return ["uv", "run", "pyright", "--outputjson", str(target.absolute())]
 
     def parse_output(
@@ -22,7 +29,15 @@ class PyrightLinter(BaseLinter):
         process_result: AsyncCompletedProcess,
         target: Path,
     ) -> list[LinterResult]:
-        """Parse Pyright JSON output."""
+        """Parse Pyright JSON output.
+
+        Args:
+            process_result: The completed process result.
+            target: The target that was scanned.
+
+        Returns:
+            A list of standardized linter results.
+        """
 
         try:
             data = json.loads(process_result.stdout)

@@ -34,7 +34,14 @@ class LiteLLMProvider(BaseAIProvider):
         self.api_base = api_base
 
     async def generate_fixes(self, linter_result: LinterResult) -> list[AIFixProposal]:
-        """Request fixes using LiteLLM asynchronously."""
+        """Request fixes using LiteLLM asynchronously.
+
+        Args:
+            linter_result: The linter result to fix.
+
+        Returns:
+            A list of AI-generated fix proposals.
+        """
         system_prompt, user_prompt = self._get_prompts(linter_result)
 
         try:

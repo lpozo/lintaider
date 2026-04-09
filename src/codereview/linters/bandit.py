@@ -14,7 +14,14 @@ class BanditLinter(BaseLinter):
     name = "Bandit"
 
     def build_command(self, target: Path) -> list[str]:
-        """Build the Bandit command for the target path."""
+        """Build the Bandit command for the target path.
+
+        Args:
+            target: The file or directory to scan.
+
+        Returns:
+            A list of command arguments.
+        """
         target_str = str(target.absolute())
         args = ["-r", target_str] if target.is_dir() else [target_str]
         return ["uv", "run", "bandit", "-f", "json"] + args
@@ -24,7 +31,15 @@ class BanditLinter(BaseLinter):
         process_result: AsyncCompletedProcess,
         target: Path,
     ) -> list[LinterResult]:
-        """Parse Bandit JSON output."""
+        """Parse Bandit JSON output.
+
+        Args:
+            process_result: The completed process result.
+            target: The target that was scanned.
+
+        Returns:
+            A list of standardized linter results.
+        """
 
         try:
             output = json.loads(process_result.stdout)

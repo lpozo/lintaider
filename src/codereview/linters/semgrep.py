@@ -14,7 +14,14 @@ class SemgrepLinter(BaseLinter):
     name = "Semgrep"
 
     def build_command(self, target: Path) -> list[str]:
-        """Build the Semgrep command for the target path."""
+        """Build the Semgrep command for the target path.
+
+        Args:
+            target: The file or directory to scan.
+
+        Returns:
+            A list of command arguments.
+        """
         return [
             "uv",
             "run",
@@ -31,7 +38,15 @@ class SemgrepLinter(BaseLinter):
         process_result: AsyncCompletedProcess,
         target: Path,
     ) -> list[LinterResult]:
-        """Parse Semgrep JSON output."""
+        """Parse Semgrep JSON output.
+
+        Args:
+            process_result: The completed process result.
+            target: The target that was scanned.
+
+        Returns:
+            A list of standardized linter results.
+        """
 
         try:
             data = json.loads(process_result.stdout)

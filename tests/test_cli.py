@@ -176,9 +176,12 @@ def test_cli_scan_skip_filter(mocker, tmp_path, mock_config) -> None:
 
     args, kwargs = mock_engine.call_args
     linters = kwargs.get("linters", []) or (args[0] if args else [])
-    # Only Vulture should remain
-    assert len(linters) == 1
-    assert linters[0].__class__.__name__ == "VultureLinter"
+    # Vulture, Radon, and Safety should remain
+    assert len(linters) == 3
+    remaining_names = [l.__class__.__name__ for l in linters]
+    assert "VultureLinter" in remaining_names
+    assert "RadonLinter" in remaining_names
+    assert "SafetyLinter" in remaining_names
 
 
 def test_cli_init_command(mocker, tmp_path) -> None:

@@ -12,9 +12,11 @@ dependencies = [
     "pylint>=4.0.5",
     "pyright>=1.1.408",
     "python-dotenv>=1.2.2",
+    "radon>=6.0.1",
     "requests>=2.33.0",
     "rich>=14.3.3",
     "ruff>=0.15.8",
+    "safety>=3.7.0",
     "semgrep>=1.86.0",
     "vulture>=2.16",
 ]

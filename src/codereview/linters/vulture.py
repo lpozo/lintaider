@@ -14,13 +14,28 @@ class VultureLinter(BaseLinter):
     name = "Vulture"
 
     def build_command(self, target: Path) -> list[str]:
-        """Build the Vulture command for the target path."""
+        """Build the Vulture command for the target path.
+
+        Args:
+            target: The file or directory to scan.
+
+        Returns:
+            A list of command arguments.
+        """
         return ["uv", "run", "vulture", str(target.absolute())]
 
     def parse_output(
         self, process_result: AsyncCompletedProcess, target: Path
     ) -> list[LinterResult]:
-        """Parse Vulture text output."""
+        """Parse Vulture text output.
+
+        Args:
+            process_result: The completed process result.
+            target: The target that was scanned.
+
+        Returns:
+            A list of standardized linter results.
+        """
 
         # Regex for Vulture output: filename:lineno: message
         pattern = re.compile(r"^(?P<file>.+?):(?P<line>\d+):\s*(?P<msg>.+)$")
