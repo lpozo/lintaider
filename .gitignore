@@ -11,4 +11,4 @@ wheels/
 
 # Config files
 codereview.toml
-scan_results.json
+scan-result.json
