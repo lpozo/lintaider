@@ -47,7 +47,10 @@ def scan(  # vulture: ignore
     output: Path | None,
     verbose: bool,
 ) -> None:
-    """Scan a target file or directory and save results to a JSON file."""
+    """Scan a target file or directory and save results.
+
+    TARGET: The file or directory you want to analyze.
+    """
     asyncio.run(
         handle_scan(target, only, skip, output or SCAN_RESULT_FILE, verbose),
     )
@@ -69,9 +72,15 @@ def fix(  # vulture: ignore
 ) -> None:
     """Read scan results and interactively apply AI-suggested fixes.
 
-    If the input results file does not exist, a scan will be performed
-    automatically on the provided target.
+    TARGET: (Optional) If the results file is missing, the tool will
+    automatically scan this path before suggesting fixes.
     """
+    if not target and not input_file and not SCAN_RESULT_FILE.exists():
+        raise click.UsageError(
+            "Nothing to fix! Please provide a [TARGET] to scan or an "
+            f"--input file. (Default file '{SCAN_RESULT_FILE}' not found)."
+        )
+
     asyncio.run(
         handle_fix(input_file or SCAN_RESULT_FILE, target),
     )
