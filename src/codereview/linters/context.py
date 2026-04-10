@@ -1,4 +1,4 @@
-"""Context extraction utilities."""
+"""Context extraction utilities for linters and AI fixing."""
 
 from pathlib import Path
 
@@ -7,9 +7,11 @@ def extract_snippet(
     file_path: Path,
     line_start: int,
     line_end: int | None = None,
-    context_lines: int = 3,
+    context_lines: int = 5,
 ) -> str:
-    """Extract a snippet of code with surrounding context lines.
+    """Extract a raw snippet of code without line numbers.
+
+    This is used for AI context and for applying patches.
 
     Args:
         file_path: Path to the target file.
@@ -18,28 +20,89 @@ def extract_snippet(
         context_lines: Number of surrounding lines to include.
 
     Returns:
-        String containing the code snippet formatted with line numbers.
-
-    Raises:
-        FileNotFoundError: If the file does not exist.
-        UnicodeDecodeError: If the file cannot be read as UTF-8.
+        The raw string content of the snippet.
     """
     if not file_path.is_file():
-        raise FileNotFoundError(f"File not found: {file_path}")
+        return ""
 
-    content = file_path.read_text(encoding="utf-8")
-    lines = content.splitlines()
+    try:
+        content = file_path.read_text(encoding="utf-8")
+        lines = content.splitlines()
 
-    start_index = max(0, line_start - 1 - context_lines)
+        # Find bounds
+        start_index = max(0, line_start - 1 - context_lines)
+        if line_end is None:
+            end_index = min(len(lines), line_start + context_lines)
+        else:
+            end_index = min(len(lines), line_end + context_lines)
 
-    if line_end is None:
-        end_index = min(len(lines), line_start + context_lines)
-    else:
-        end_index = min(len(lines), line_end + context_lines)
+        return "\n".join(lines[start_index:end_index])
+    except (OSError, UnicodeDecodeError):
+        return ""
 
-    extracted_lines = lines[start_index:end_index]
 
+def format_snippet(snippet: str, start_line: int) -> str:
+    """Add line numbers to a raw snippet for terminal display.
+
+    Args:
+        snippet: The raw code snippet.
+        start_line: The 1-indexed line number of the first line in the snippet.
+
+    Returns:
+        A formatted string with line numbers.
+    """
+    if not snippet:
+        return ""
+
+    lines = snippet.splitlines()
     return "\n".join(
-        f"{start_index + index + 1:4d} | {line}"
-        for index, line in enumerate(extracted_lines)
+        f"{start_line + i:4d} | {line}" for i, line in enumerate(lines)
     )
+
+
+def get_context_bounds(file_path: Path, line_start: int) -> tuple[int, str]:
+    """Find the semantic context (function/class) containing the line.
+
+    Args:
+        file_path: Path to the target file.
+        line_start: Line number where the error occurred.
+
+    Returns:
+        A tuple of (start_index, info_string) where info_string describes
+        the block (e.g., "in function my_func").
+    """
+    if not file_path.is_file():
+        return 0, "unknown context"
+
+    try:
+        lines = file_path.read_text(encoding="utf-8").splitlines()
+        current_idx = line_start - 1
+
+        # Search upwards for def or class
+        for i in range(current_idx, -1, -1):
+            line = lines[i].strip()
+            if line.startswith(("def ", "class ")):
+                # Return the starting index and a description
+                return i, f"in {line.split('(')[0].split(':')[0].strip()}"
+
+        return max(0, current_idx - 10), "in module scope"
+    except (OSError, UnicodeDecodeError):
+        return 0, "unknown context"
+
+
+def get_linter_context(
+    file_path: Path,
+    line_start: int,
+    line_end: int | None = None,
+    context_lines: int = 10,
+) -> tuple[str, int, str]:
+    """Get raw snippet, its start line, and semantic info in one call.
+
+    Returns:
+        A tuple of (raw_snippet, snippet_start_line, semantic_info).
+    """
+    _, semantic_info = get_context_bounds(file_path, line_start)
+    raw_snippet = extract_snippet(file_path, line_start, line_end, context_lines)
+    snippet_start_line = max(1, line_start - context_lines)
+
+    return raw_snippet, snippet_start_line, semantic_info

@@ -31,6 +31,8 @@ class LinterResult:
     error_code: str
     message: str
     snippet_context: str = ""
+    snippet_start_line: int = 1
+    semantic_context: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize to a JSON-compatible dict.
@@ -62,4 +64,6 @@ class LinterResult:
             error_code=data["error_code"],
             message=data["message"],
             snippet_context=data.get("snippet_context", ""),
+            snippet_start_line=data.get("snippet_start_line", 1),
+            semantic_context=data.get("semantic_context", ""),
         )

@@ -52,5 +52,6 @@ class BaseAIProvider(abc.ABC):
             error_code=result.error_code,
             message=result.message,
             snippet_context=result.snippet_context,
+            semantic_context=result.semantic_context,
         )
         return system_prompt, user_prompt

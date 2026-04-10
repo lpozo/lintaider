@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 
 from codereview.linters.base import AsyncCompletedProcess, BaseLinter
-from codereview.linters.context import extract_snippet
+from codereview.linters.context import get_linter_context
 from codereview.linters.result import LinterResult
 
 MIN_COMPLEXITY_RANK = "C"
@@ -75,11 +75,11 @@ class RadonLinter(BaseLinter):
                     f"complexity {complexity} (rank {rank})"
                 )
 
-                snippet = extract_snippet(
+                raw_snippet, snippet_start, semantic_info = get_linter_context(
                     file_path=file_path,
                     line_start=line_start,
                     line_end=line_end,
-                    context_lines=3,
+                    context_lines=10,
                 )
 
                 parsed_results.append(
@@ -92,7 +92,9 @@ class RadonLinter(BaseLinter):
                         linter_name=self.name,
                         error_code=f"CC-{rank}",
                         message=message,
-                        snippet_context=snippet,
+                        snippet_context=raw_snippet,
+                        snippet_start_line=snippet_start,
+                        semantic_context=semantic_info,
                     )
                 )
 

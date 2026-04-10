@@ -13,6 +13,7 @@ from codereview.ai import AIFixProposal, create_ai_provider
 from codereview.cli.scan_handler import handle_scan
 from codereview.cli.ui import console
 from codereview.config import Config
+from codereview.linters.context import format_snippet
 from codereview.linters.result import LinterResult
 
 
@@ -100,9 +101,10 @@ async def _process_fix_interactive(
     )
 
     if result.snippet_context:
-        syntax = Syntax(
-            result.snippet_context, "python", theme="monokai", line_numbers=False
+        formatted = format_snippet(
+            result.snippet_context, result.snippet_start_line
         )
+        syntax = Syntax(formatted, "python", theme="monokai", line_numbers=False)
         console.print(Panel(syntax, title="Original Context", border_style="yellow"))
 
     with console.status("[dim]Asking AI for a solution...[/dim]", spinner="dots"):

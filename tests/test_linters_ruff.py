@@ -9,9 +9,12 @@ from codereview.linters.base import AsyncCompletedProcess
 
 
 @pytest.fixture(autouse=True)
-def _mock_extract_snippet(mocker):
-    """Mock extract_snippet to return a dummy string."""
-    return mocker.patch("codereview.linters.ruff.extract_snippet", return_value="snippet")
+def _mock_get_context(mocker):
+    """Mock get_linter_context to return dummy values."""
+    return mocker.patch(
+        "codereview.linters.ruff.get_linter_context",
+        return_value=("snippet", 1, "context"),
+    )
 
 
 @pytest.fixture
