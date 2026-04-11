@@ -95,15 +95,15 @@ You can also set default `only_linters` and `skip_linters` values in
 
 ## Supported Linters
 
-- Ruff
-- Pylint
-- Bandit
-- MyPy
-- Pyright
-- Semgrep
-- Vulture
-- Radon
-- Safety
+- [Ruff](https://github.com/astral-sh/ruff)
+- [Pylint](https://github.com/pylint-dev/pylint)
+- [Bandit](https://github.com/PyCQA/bandit)
+- [MyPy](https://github.com/python/mypy)
+- [Pyright](https://github.com/microsoft/pyright)
+- [Semgrep](https://github.com/semgrep/semgrep)
+- [Vulture](https://github.com/jendrikseipp/vulture)
+- [Radon](https://github.com/rubik/radon)
+- [Safety](https://github.com/pyupio/safety)
 
 ## Configuration
 
