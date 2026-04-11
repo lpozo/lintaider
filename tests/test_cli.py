@@ -14,7 +14,9 @@ from codereview.linters.result import LinterResult
 @pytest.fixture
 def mock_config(mocker):
     """Fixture to mock Config.load with defaults."""
-    return mocker.patch("codereview.cli.init_handler.Config.load", return_value=Config())
+    return mocker.patch(
+        "codereview.cli.init_handler.Config.load", return_value=Config()
+    )
 
 
 def test_cli_scan_no_issues(mocker, tmp_path, mock_config) -> None:
@@ -24,7 +26,9 @@ def test_cli_scan_no_issues(mocker, tmp_path, mock_config) -> None:
     test_file.write_text("def ok():\n    return 1\n", encoding="utf-8")
 
     mocker.patch(
-        "codereview.cli.scan_handler.Engine.run_all", new_callable=AsyncMock, return_value=[]
+        "codereview.cli.scan_handler.Engine.run_all",
+        new_callable=AsyncMock,
+        return_value=[],
     )
 
     result = runner.invoke(main, ["scan", str(test_file)])
@@ -185,22 +189,26 @@ def test_cli_scan_skip_filter(mocker, tmp_path, mock_config) -> None:
 
 
 def test_cli_init_command(mocker, tmp_path) -> None:
-    """Test the init command flow."""
+    """Test the redesigned init command flow."""
     runner = CliRunner()
-    config_file = tmp_path / "codereview.toml"
+    _ = tmp_path / "codereview.toml"
 
-    # Create a real config object and mock load to return it
     config = Config()
     mocker.patch("codereview.cli.init_handler.Config.load", return_value=config)
+    mocker.patch("codereview.cli.init_handler.list_provider_models", return_value=[])
+    mocker.patch(
+        "codereview.cli.init_handler.save_provider_api_key", return_value="keychain"
+    )
     mock_save = mocker.patch.object(Config, "save")
 
-    # Inputs: Provider, Model, API Base (empty), API Key (empty), Skip (empty), Only (empty)
-    result = runner.invoke(main, ["init"], input="openai\ngpt-4\n\n\n\n\n")
+    # Inputs: provider #2=openai, API key blank, API base blank, model #1,
+    # skip blank, only blank, verify now? no, save? yes
+    result = runner.invoke(main, ["init"], input="2\n\n\n1\n\n\nn\ny\n")
 
     assert result.exit_code == 0
     assert "Configuration Saved" in result.output
     assert config.provider == "openai"
-    assert config.model == "gpt-4"
+    assert config.model
     mock_save.assert_called_once()
 
 
@@ -225,3 +233,215 @@ def test_cli_apply_patch_fuzzy(tmp_path) -> None:
     assert "line2" not in content
     assert "new_line" in content
     assert "line1" in content
+
+
+def test_init_helper_parse_linter_list() -> None:
+    """Test linter list parsing helper."""
+    from codereview.cli.init_handler import _parse_linter_list
+
+    # Normal case
+    result = _parse_linter_list("ruff, pylint, bandit")
+    assert result == ["ruff", "pylint", "bandit"]
+
+    # Duplicates
+    result = _parse_linter_list("ruff, pylint, ruff")
+    assert result == ["ruff", "pylint"]
+
+    # Mixed case
+    result = _parse_linter_list("Ruff, PYLINT")
+    assert result == ["ruff", "pylint"]
+
+    # Empty
+    result = _parse_linter_list("")
+    assert result == []
+
+    # Whitespace only
+    result = _parse_linter_list("  ,  ,  ")
+    assert result == []
+
+
+def test_init_helper_select_linter_preferences(mocker) -> None:
+    """Test linter preference selection with validation."""
+    from codereview.cli.init_handler import _select_linter_preferences
+
+    config = Config(skip_linters=["ruff"], only_linters=[])
+
+    mocker.patch(
+        "codereview.cli.init_handler.click.prompt",
+        side_effect=["ruff,pylint", ""],  # skip, only
+    )
+
+    skip, only = _select_linter_preferences(config)
+    assert "ruff" in skip
+    assert "pylint" in skip
+
+
+def test_init_helper_select_linter_preferences_invalid(mocker) -> None:
+    """Test that invalid linter names are handled gracefully."""
+    from codereview.cli.init_handler import _select_linter_preferences
+
+    config = Config()
+
+    mocker.patch(
+        "codereview.cli.init_handler.click.prompt",
+        side_effect=["ruff,invalid_linter", ""],
+    )
+
+    skip, only = _select_linter_preferences(config)
+    assert "ruff" in skip
+    assert "invalid_linter" not in skip
+
+
+def test_init_helper_select_linter_preferences_overlap(mocker) -> None:
+    """Test overlap removal between skip and only linters."""
+    from codereview.cli.init_handler import _select_linter_preferences
+
+    config = Config()
+
+    mocker.patch(
+        "codereview.cli.init_handler.click.prompt",
+        side_effect=["ruff,pylint", "pylint,bandit"],  # pylint is in both
+    )
+
+    skip, only = _select_linter_preferences(config)
+    assert "pylint" not in skip  # Should be removed from skip
+    assert "pylint" in only
+    assert "bandit" in only
+
+
+def test_init_helper_run_connectivity_check(mocker) -> None:
+    """Test connectivity check during init."""
+    from codereview.cli.init_handler import _run_connectivity_check
+
+    mocker.patch(
+        "codereview.cli.init_handler.verify_provider_connection",
+        return_value=(True, "Connection successful"),
+        new_callable=AsyncMock,
+    )
+
+    ok = _run_connectivity_check("openai", "gpt-4o", None, "test_key")
+    assert ok is True
+
+
+def test_init_helper_run_connectivity_check_failure(mocker) -> None:
+    """Test connectivity check failure handling."""
+    from codereview.cli.init_handler import _run_connectivity_check
+
+    mocker.patch(
+        "codereview.cli.init_handler.verify_provider_connection",
+        return_value=(False, "Invalid API key"),
+        new_callable=AsyncMock,
+    )
+
+    ok = _run_connectivity_check("openai", "gpt-4o", None, "invalid")
+    assert ok is False
+
+
+def test_init_helper_select_api_base(mocker) -> None:
+    """Test API base selection with provider defaults."""
+    from codereview.cli.init_handler import _select_api_base
+
+    mocker.patch("codereview.cli.init_handler.click.prompt", return_value="")
+
+    result = _select_api_base("ollama", None)
+    assert result is None  # Empty input -> None
+
+
+def test_init_helper_select_api_base_custom(mocker) -> None:
+    """Test custom API base override."""
+    from codereview.cli.init_handler import _select_api_base
+
+    mocker.patch(
+        "codereview.cli.init_handler.click.prompt",
+        return_value="http://custom:8080",
+    )
+
+    result = _select_api_base("ollama", None)
+    assert result == "http://custom:8080"
+
+
+def test_init_helper_update_provider_api_key_local(mocker) -> None:
+    """Test that local providers skip API key prompt."""
+    from codereview.cli.init_handler import _update_provider_api_key
+
+    result = _update_provider_api_key("ollama")
+    assert result is None  # Ollama needs no API key
+
+
+def test_init_helper_update_provider_api_key_cloud(mocker) -> None:
+    """Test API key capture for cloud providers."""
+    from codereview.cli.init_handler import _update_provider_api_key
+
+    mocker.patch(
+        "codereview.cli.init_handler.get_api_key_for_provider", return_value=None
+    )
+    mocker.patch("codereview.cli.init_handler.click.prompt", return_value="sk-test123")
+    mocker.patch(
+        "codereview.cli.init_handler.save_provider_api_key", return_value="keychain"
+    )
+
+    result = _update_provider_api_key("openai")
+    assert result == "sk-test123"
+
+
+def test_init_helper_update_provider_api_key_keep_existing(mocker) -> None:
+    """Test keeping existing API key when new one is not provided."""
+    from codereview.cli.init_handler import _update_provider_api_key
+
+    mocker.patch(
+        "codereview.cli.init_handler.get_api_key_for_provider",
+        return_value="existing_key",
+    )
+    mocker.patch("codereview.cli.init_handler.click.prompt", return_value="")
+
+    result = _update_provider_api_key("openai")
+    assert result == "existing_key"
+
+
+def test_init_helper_select_model_with_discovery(mocker) -> None:
+    """Test model selection with successful discovery."""
+    from codereview.cli.init_handler import _select_model
+
+    mocker.patch(
+        "codereview.cli.init_handler.list_provider_models",
+        return_value=["gpt-4o", "gpt-4o-mini", "gpt-3.5-turbo"],
+    )
+    mocker.patch("codereview.cli.init_handler.click.prompt", return_value="1")
+
+    result = _select_model("openai", "gpt-4o", None, "test_key")
+    assert result == "gpt-4o"
+
+
+def test_init_helper_select_model_discovery_failed(mocker) -> None:
+    """Test model selection falls back to recommended when discovery fails."""
+    from codereview.cli.init_handler import _select_model
+
+    mocker.patch(
+        "codereview.cli.init_handler.list_provider_models",
+        return_value=[],  # Discovery failed
+    )
+    mocker.patch("codereview.cli.init_handler.click.prompt", return_value="1")
+
+    result = _select_model("openai", "", None, None)
+    # Should use recommended models from provider spec
+    assert isinstance(result, str)
+
+
+def test_init_helper_select_provider(mocker) -> None:
+    """Test provider selection menu."""
+    from codereview.cli.init_handler import _select_provider
+
+    mocker.patch("codereview.cli.init_handler.click.prompt", return_value="1")
+
+    result = _select_provider("ollama")
+    assert result == "ollama"  # First provider in PROVIDER_SPECS
+
+
+def test_init_helper_select_provider_by_name(mocker) -> None:
+    """Test provider selection by entering provider name."""
+    from codereview.cli.init_handler import _select_provider
+
+    mocker.patch("codereview.cli.init_handler.click.prompt", return_value="openai")
+
+    result = _select_provider("ollama")
+    assert result == "openai"

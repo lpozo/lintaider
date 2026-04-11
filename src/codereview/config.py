@@ -37,14 +37,10 @@ class Config:
             with config_path.open("rb") as file:
                 data = tomllib.load(file)
 
-                # Extract AI Settings
                 ai_data = data.get("ai", {})
-
-                # Extract Linter Settings
                 linter_data = data.get("linters", {})
                 merged = {**ai_data, **linter_data}
 
-                # Filter unknown keys to prevent init errors
                 valid_keys = {
                     "provider",
                     "model",
@@ -54,9 +50,18 @@ class Config:
                 }
                 filtered = {k: v for k, v in merged.items() if k in valid_keys}
 
-                return cls(**filtered)
+                config = cls(**filtered)
+                config.normalize()
+                return config
         except (OSError, ValueError):
             return cls()
+
+    def normalize(self) -> None:
+        """Normalize list-based fields to predictable lowercase values."""
+        self.provider = self.provider.strip().lower()
+        self.model = self.model.strip()
+        self.only_linters = _normalize_linter_list(self.only_linters)
+        self.skip_linters = _normalize_linter_list(self.skip_linters)
 
     def save(self, path: Path | None = None) -> None:
         """Save the current configuration to a TOML file.
@@ -67,9 +72,9 @@ class Config:
         Returns:
             None
         """
+        self.normalize()
         config_path = path or Path("codereview.toml")
 
-        # Build TOML manually to separate sections cleanly
         lines = ["[ai]\n"]
         lines.append(f'provider = "{self.provider}"\n')
         lines.append(f'model = "{self.model}"\n')
@@ -81,3 +86,9 @@ class Config:
         lines.append(f"skip_linters = {self.skip_linters}\n")
 
         config_path.write_text("".join(lines), encoding="utf-8")
+
+
+def _normalize_linter_list(values: list[str]) -> list[str]:
+    """Normalize and deduplicate linter values preserving order."""
+    normalized = [value.strip().lower() for value in values if value.strip()]
+    return list(dict.fromkeys(normalized))
