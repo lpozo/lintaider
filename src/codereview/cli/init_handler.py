@@ -76,7 +76,15 @@ def handle_init() -> None:
 
 
 def _select_provider(current_provider: str) -> str:
-    """Present a guided provider menu and return the selected provider id."""
+    """Present a guided provider menu and return the selected provider ID.
+
+    Args:
+        current_provider: The currently configured provider ID, used to
+            pre-select the default menu entry.
+
+    Returns:
+        The lowercase provider ID chosen by the user.
+    """
     providers = list(PROVIDER_SPECS.values())
     default_index = 1
     for idx, spec in enumerate(providers, start=1):
@@ -114,7 +122,18 @@ def _select_provider(current_provider: str) -> str:
 
 
 def _update_provider_api_key(provider: str) -> str | None:
-    """Capture provider API key and store it securely when needed."""
+    """Prompt for and securely store the provider API key when required.
+
+    Skips the prompt for providers that do not require an API key (e.g.,
+    Ollama). When an existing key is found and the user submits an empty
+    input, the existing key is retained.
+
+    Args:
+        provider: The lowercase provider identifier.
+
+    Returns:
+        The API key entered or retrieved, or ``None`` if not applicable.
+    """
     provider_spec = get_provider_spec(provider)
     if not provider_spec or not provider_spec.requires_api_key:
         return None
@@ -145,7 +164,19 @@ def _update_provider_api_key(provider: str) -> str | None:
 
 
 def _select_api_base(provider: str, current_api_base: str | None) -> str | None:
-    """Prompt for API base override with provider defaults."""
+    """Prompt the user for an optional API base URL override.
+
+    Falls back to the provider's default base URL when no override is given.
+
+    Args:
+        provider: The lowercase provider identifier.
+        current_api_base: The API base URL currently stored in config, used
+            as the pre-filled default in the prompt.
+
+    Returns:
+        The user-supplied base URL string, or ``None`` to use the provider
+        default.
+    """
     provider_spec = get_provider_spec(provider)
     default_api_base = current_api_base
     if not default_api_base and provider_spec:
@@ -165,7 +196,23 @@ def _build_model_candidates(
     api_base: str | None,
     api_key: str | None,
 ) -> tuple[list[str], str]:
-    """Build model candidates from discovery, recommendations, or current."""
+    """Build the list of model choices for the selection menu.
+
+    Attempts live model discovery first. Falls back to the provider's
+    recommended models list on failure, and always ensures the currently
+    configured model appears as an option.
+
+    Args:
+        provider: The lowercase provider identifier.
+        current_model: The model name currently stored in config.
+        api_base: Optional API base URL override.
+        api_key: Optional API key override.
+
+    Returns:
+        A two-tuple of ``(candidates, default_model)`` where ``candidates``
+        is the ordered list of model names to display and ``default_model``
+        is the pre-selected entry.
+    """
     provider_spec = get_provider_spec(provider)
     default_model = current_model or (
         provider_spec.default_model if provider_spec else ""
@@ -197,7 +244,20 @@ def _select_model(
     api_base: str | None,
     api_key: str | None,
 ) -> str:
-    """Select a model from discovered and recommended options or custom input."""
+    """Present a model selection menu and return the chosen model name.
+
+    Displays discovered or recommended models in a numbered table. The user
+    may select by number or type a custom model name directly.
+
+    Args:
+        provider: The lowercase provider identifier.
+        current_model: The model name currently stored in config.
+        api_base: Optional API base URL override.
+        api_key: Optional API key override.
+
+    Returns:
+        The selected or manually entered model name string.
+    """
     model_candidates, default_model = _build_model_candidates(
         provider, current_model, api_base, api_key
     )
@@ -232,7 +292,16 @@ def _select_model(
 
 
 def _validate_and_filter_linters(linter_list: list[str], list_name: str) -> list[str]:
-    """Validate linter names against known linters, warn on invalid names."""
+    """Remove unrecognised linter names and warn the user about them.
+
+    Args:
+        linter_list: The list of linter names to validate.
+        list_name: A human-readable label for the list (e.g., ``"skip"``
+            or ``"only"``), used in warning messages.
+
+    Returns:
+        A filtered list containing only known linter names.
+    """
     invalid = [name for name in linter_list if name not in LINTER_MAP]
     if invalid:
         console.print(
@@ -244,7 +313,18 @@ def _validate_and_filter_linters(linter_list: list[str], list_name: str) -> list
 
 
 def _select_linter_preferences(config: Config) -> tuple[list[str], list[str]]:
-    """Collect and validate default linter preferences."""
+    """Prompt the user for default linter skip and only preferences.
+
+    Validates both lists against the known linter registry, warns on
+    unknown names, and resolves conflicts when a linter appears in both.
+
+    Args:
+        config: The current configuration, used to pre-fill the prompts.
+
+    Returns:
+        A two-tuple of ``(skip_linters, only_linters)`` lists of validated
+        linter name strings.
+    """
     available_linters = sorted(LINTER_MAP.keys())
     console.print(f"[dim]Available linters: {', '.join(available_linters)}[/dim]")
 
@@ -277,7 +357,15 @@ def _select_linter_preferences(config: Config) -> tuple[list[str], list[str]]:
 
 
 def _parse_linter_list(raw: str) -> list[str]:
-    """Normalize a comma-separated linter list."""
+    """Normalise a comma-separated string into a deduplicated list of linter names.
+
+    Args:
+        raw: Comma-separated linter names as entered by the user.
+
+    Returns:
+        An order-preserving, lowercased, deduplicated list of name strings.
+        Returns an empty list when ``raw`` is blank.
+    """
     if not raw:
         return []
     normalized = [item.strip().lower() for item in raw.split(",") if item.strip()]
@@ -291,7 +379,21 @@ def _run_connectivity_check(
     api_base: str | None,
     api_key: str | None,
 ) -> bool:
-    """Run a lightweight connectivity check and print the result."""
+    """Run a blocking connectivity check and print the result to the console.
+
+    Wraps the async ``verify_provider_connection`` coroutine using
+    ``asyncio.run``. Gracefully handles ``RuntimeError`` when called inside
+    an already-running event loop.
+
+    Args:
+        provider: The lowercase provider identifier.
+        model: The model name to use for the test request.
+        api_base: Optional API base URL override.
+        api_key: Optional API key override.
+
+    Returns:
+        ``True`` if the connectivity check passed, ``False`` otherwise.
+    """
     try:
         ok, message = asyncio.run(
             verify_provider_connection(
@@ -319,7 +421,16 @@ def _print_summary(  # pylint: disable=too-many-arguments,too-many-positional-ar
     only_linters: list[str],
     verification_ok: bool,
 ) -> None:
-    """Display a final onboarding summary before saving."""
+    """Render a rich panel summarising the pending configuration before saving.
+
+    Args:
+        provider: The selected provider identifier.
+        model: The selected model name.
+        api_base: The selected API base URL, or ``None`` for the provider default.
+        skip_linters: Linter names to skip by default.
+        only_linters: Linter names to run exclusively by default.
+        verification_ok: Whether the connectivity check passed.
+    """
     status = "Passed" if verification_ok else "Skipped/Failed"
     skip_str = ", ".join(skip_linters) if skip_linters else "None"
     only_str = ", ".join(only_linters) if only_linters else "All"

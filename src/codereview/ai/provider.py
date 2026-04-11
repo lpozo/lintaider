@@ -130,7 +130,19 @@ def create_ai_provider(
 def _resolve_base_url(
     provider_name: str, api_base: str | None, provider_spec: "ProviderSpec | None"
 ) -> str | None:
-    """Resolve the API base URL for a provider."""
+    """Resolve the effective API base URL for a provider.
+
+    Checks, in order: the explicit ``api_base`` argument, the provider
+    spec's default, and finally a hard-coded fallback for well-known providers.
+
+    Args:
+        provider_name: Lowercase provider identifier (e.g., ``"openai"``).
+        api_base: Optional caller-supplied base URL override.
+        provider_spec: Provider metadata from the registry, or ``None``.
+
+    Returns:
+        The resolved base URL, or ``None`` if it cannot be determined.
+    """
     base_url = api_base or (provider_spec.default_api_base if provider_spec else None)
     if base_url:
         return base_url
@@ -147,7 +159,18 @@ def _resolve_base_url(
 def _prepare_request_headers_and_params(
     provider_name: str, api_key: str | None
 ) -> tuple[dict[str, str], dict[str, str]]:
-    """Prepare HTTP headers and params for model discovery request."""
+    """Build HTTP headers and query params for a model list discovery request.
+
+    Handles provider-specific authentication schemes: bearer token for
+    OpenAI/Anthropic, API key query param for Gemini, and nothing for Ollama.
+
+    Args:
+        provider_name: Lowercase provider identifier.
+        api_key: Optional API key override; falls back to environment/keyring.
+
+    Returns:
+        A two-tuple of ``(headers, params)`` dicts ready for use in a request.
+    """
     headers: dict[str, str] = {}
     params: dict[str, str] = {}
 
@@ -163,7 +186,20 @@ def _prepare_request_headers_and_params(
 
 
 def _parse_openai_style_models(provider_name: str, raw_models: list) -> list[str]:
-    """Parse OpenAI-style model list response (used by OpenAI, Anthropic, Gemini)."""
+    """Extract model names from an OpenAI-style model list response.
+
+    Used by OpenAI, Anthropic, and Gemini, which all return either a ``data``
+    list of objects with an ``id`` field, or a ``models`` list. Gemini model
+    names are stripped of their ``models/`` prefix.
+
+    Args:
+        provider_name: Lowercase provider identifier, used to apply
+            provider-specific name transformations.
+        raw_models: The raw list of model objects from the JSON response.
+
+    Returns:
+        A sorted, deduplicated list of model name strings.
+    """
     names: list[str] = []
     for item in raw_models:
         if not isinstance(item, dict):
@@ -178,7 +214,18 @@ def _parse_openai_style_models(provider_name: str, raw_models: list) -> list[str
 
 
 def _parse_model_response(provider_name: str, payload: dict) -> list[str]:
-    """Parse model names from API response."""
+    """Dispatch model name parsing based on provider response format.
+
+    Ollama uses a ``models`` list with ``name`` fields. All other providers
+    use an OpenAI-compatible format handled by ``_parse_openai_style_models``.
+
+    Args:
+        provider_name: Lowercase provider identifier.
+        payload: Parsed JSON response body from the model list endpoint.
+
+    Returns:
+        A sorted, deduplicated list of model name strings.
+    """
     if provider_name == "ollama":
         models = payload.get("models", [])
         return sorted(
@@ -194,10 +241,19 @@ def list_provider_models(
     api_base: str | None = None,
     api_key: str | None = None,
 ) -> list[str]:
-    """Best-effort model discovery for supported providers.
+    """Discover available models for a provider via its model list endpoint.
 
-    Returns an empty list on failures so onboarding can gracefully fall back
-    to manual model entry.
+    Makes a best-effort HTTP request to the provider's model list endpoint.
+    Returns an empty list on any failure so callers can gracefully fall back
+    to manual model entry or recommended models.
+
+    Args:
+        provider_name: The provider to query (e.g., ``"ollama"``, ``"openai"``).
+        api_base: Optional base URL override (useful for self-hosted providers).
+        api_key: Optional API key override; falls back to environment/keyring.
+
+    Returns:
+        A sorted list of model name strings, or an empty list on failure.
     """
     provider_name = provider_name.lower().strip()
     provider_spec = get_provider_spec(provider_name)
@@ -235,7 +291,21 @@ async def verify_provider_connection(
     api_base: str | None = None,
     api_key: str | None = None,
 ) -> tuple[bool, str]:
-    """Run a lightweight connectivity check for the selected provider/model."""
+    """Run a lightweight connectivity check for the given provider and model.
+
+    Sends a minimal completion request (``ping`` → ``OK``) to verify that
+    credentials and network access are working before saving configuration.
+
+    Args:
+        provider_name: The provider to check (e.g., ``"openai"``).
+        model_name: The model to use for the test request.
+        api_base: Optional base URL override.
+        api_key: Optional API key override; falls back to environment/keyring.
+
+    Returns:
+        A two-tuple of ``(success, message)`` where ``success`` is ``True``
+        when the provider responded without error.
+    """
     provider_name = provider_name.lower().strip()
     model = model_name if "/" in model_name else f"{provider_name}/{model_name}"
 

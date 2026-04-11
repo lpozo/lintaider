@@ -35,10 +35,13 @@ class LinterResult:
     semantic_context: str = ""
 
     def to_dict(self) -> dict[str, Any]:
-        """Serialize to a JSON-compatible dict.
+        """Serialise this result to a JSON-compatible dictionary.
+
+        The ``file_path`` field is converted from a ``Path`` object to a
+        plain string so the output can be written directly to JSON.
 
         Returns:
-            A dictionary containing serialized linter result data.
+            A dictionary suitable for ``json.dumps``.
         """
         data = asdict(self)
         data["file_path"] = str(data["file_path"])

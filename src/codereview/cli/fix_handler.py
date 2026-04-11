@@ -21,7 +21,17 @@ async def handle_fix(
     input_file: Path,
     target: Path | None = None,
 ) -> None:
-    """AI suggestion and interactive patch workflow."""
+    """Load scan results and run the interactive AI fix workflow.
+
+    If the results file does not exist and a ``target`` is provided, a scan
+    is run first. AI fix proposals for all issues are requested concurrently
+    in the background while the user steps through them one by one.
+
+    Args:
+        input_file: Path to the JSON file produced by ``codereview scan``.
+        target: Optional file or directory to auto-scan when ``input_file``
+            is missing.
+    """
     if not input_file.exists():
         if target:
             console.print(
@@ -89,7 +99,18 @@ async def _process_fix_interactive(
     result: LinterResult,
     ai_task: asyncio.Task[list[AIFixProposal]],
 ) -> None:
-    """Helper to process a single fix interactively."""
+    """Display one linter issue and apply the user-selected AI fix.
+
+    Awaits the AI task, renders each proposal as a syntax-highlighted diff,
+    and prompts the user to select an option or skip. Applies the chosen
+    patch immediately.
+
+    Args:
+        idx: Zero-based index of the current issue.
+        total: Total number of issues being processed.
+        result: The linter result describing the issue.
+        ai_task: Background task that resolves to a list of AI fix proposals.
+    """
     console.print(
         Panel(
             f"[bold]{result.linter_name}[/bold] error {result.error_code} at "
@@ -101,9 +122,7 @@ async def _process_fix_interactive(
     )
 
     if result.snippet_context:
-        formatted = format_snippet(
-            result.snippet_context, result.snippet_start_line
-        )
+        formatted = format_snippet(result.snippet_context, result.snippet_start_line)
         syntax = Syntax(formatted, "python", theme="monokai", line_numbers=False)
         console.print(Panel(syntax, title="Original Context", border_style="yellow"))
 
@@ -159,7 +178,22 @@ async def _process_fix_interactive(
 def _apply_patch(
     file_path: Path, line_start: int, original_context: str, new_code: str
 ) -> bool:
-    """Apply the chosen patch to the file using fuzzy content matching."""
+    """Apply an AI-generated patch to a file using fuzzy content matching.
+
+    First attempts an exact match at the reported line number. Falls back to
+    a ``difflib.SequenceMatcher`` search within a 100-line window, and then
+    across the entire file, accepting a match when it covers at least 70 %
+    of the original snippet length.
+
+    Args:
+        file_path: Path to the file to patch.
+        line_start: 1-indexed line number where the original code begins.
+        original_context: The snippet text to locate and replace.
+        new_code: The replacement code to write in place of the original.
+
+    Returns:
+        ``True`` if the patch was applied successfully, ``False`` otherwise.
+    """
     try:
         content = file_path.read_text(encoding="utf-8")
         lines = content.splitlines()

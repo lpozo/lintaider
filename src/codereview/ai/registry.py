@@ -5,7 +5,22 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class ProviderSpec:  # pylint: disable=too-many-instance-attributes
-    """Declarative metadata for an AI provider."""
+    """Declarative metadata for a supported AI provider.
+
+    Attributes:
+        provider_id: Lowercase identifier used in config and CLI (e.g., ``"openai"``).
+        display_name: Human-readable name shown in the setup wizard.
+        env_var: Environment variable that holds the API key, or ``None`` for
+            local providers that do not require authentication.
+        requires_api_key: Whether the provider requires an API key to operate.
+        default_model: The model selected when the user does not specify one.
+        default_api_base: Default base URL for the provider's API endpoint.
+            ``None`` means the provider SDK resolves the URL automatically.
+        model_list_endpoint: URL path appended to the base URL for model
+            discovery (e.g., ``"/models"``). ``None`` disables discovery.
+        recommended_models: Curated tuple of model names shown as suggestions
+            when live model discovery fails.
+    """
 
     provider_id: str
     display_name: str
@@ -63,10 +78,23 @@ PROVIDER_SPECS: dict[str, ProviderSpec] = {
 
 
 def get_provider_spec(provider: str) -> ProviderSpec | None:
-    """Get provider metadata from a provider identifier."""
+    """Look up provider metadata by identifier.
+
+    Args:
+        provider: The provider identifier to look up. Case-insensitive;
+            leading and trailing whitespace is ignored.
+
+    Returns:
+        The matching ``ProviderSpec``, or ``None`` if not found.
+    """
     return PROVIDER_SPECS.get(provider.lower().strip())
 
 
 def get_supported_providers() -> tuple[str, ...]:
-    """Return provider identifiers in registry order."""
+    """Return all registered provider identifiers in insertion order.
+
+    Returns:
+        A tuple of lowercase provider ID strings (e.g.,
+        ``("ollama", "openai", "anthropic", "gemini")``).
+    """
     return tuple(PROVIDER_SPECS.keys())  # noqa: VULTURE

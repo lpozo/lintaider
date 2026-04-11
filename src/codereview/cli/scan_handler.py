@@ -28,7 +28,21 @@ async def handle_scan(
     output: Path,
     verbose: bool = False,
 ) -> None:
-    """Run all configured linters and write results to a JSON file."""
+    """Run all active linters on a target path and write results to JSON.
+
+    Linters are executed in parallel. Progress is rendered in the terminal.
+    When no issues are found, a success message is printed and no file is
+    written.
+
+    Args:
+        target: The file or directory to scan.
+        only: Optional comma-separated list of linter names to run exclusively.
+            Overrides the ``only_linters`` value from config.
+        skip: Optional comma-separated list of linter names to skip.
+            Overrides the ``skip_linters`` value from config.
+        output: Path to the JSON file where results will be saved.
+        verbose: When ``True``, prints a detailed panel for every issue found.
+    """
     console.print(f"[bold blue]Scanning {target}...[/bold blue]")
 
     config = Config.load()
@@ -75,7 +89,15 @@ async def handle_scan(
 
 
 def _parse_linter_names(names: str | None, default: list[str]) -> list[str]:
-    """Helper to parse a comma-separated list of linter names."""
+    """Parse a comma-separated linter name string into a normalised list.
+
+    Args:
+        names: Comma-separated linter names, or ``None`` to use the default.
+        default: The list to return when ``names`` is ``None`` or empty.
+
+    Returns:
+        A list of lowercase linter name strings.
+    """
     if not names:
         return default
     return [name.strip().lower() for name in names.split(",")]
@@ -84,7 +106,19 @@ def _parse_linter_names(names: str | None, default: list[str]) -> list[str]:
 def _get_active_linters(
     config: Config, only: str | None, skip: str | None
 ) -> list[str]:
-    """Determine which linters to execute based on config and CLI overrides."""
+    """Determine which linters to run based on config and CLI flag overrides.
+
+    CLI flags take precedence over config file values. ``only`` is applied
+    before ``skip``.
+
+    Args:
+        config: The loaded configuration supplying default filter lists.
+        only: Optional comma-separated linter names to run exclusively.
+        skip: Optional comma-separated linter names to exclude.
+
+    Returns:
+        An ordered list of active linter name strings.
+    """
     only_list = _parse_linter_names(only, config.only_linters)
     skip_list = _parse_linter_names(skip, config.skip_linters)
 
@@ -97,7 +131,13 @@ def _get_active_linters(
 
 
 def _print_scan_summary(results: list[LinterResult], verbose: bool) -> None:
-    """Helper to display the tabular summary and verbose log."""
+    """Print a findings summary table, and detailed panels when verbose.
+
+    Args:
+        results: The list of linter results to display.
+        verbose: When ``True``, prints a rich panel for each individual issue
+            including the code snippet context.
+    """
     counts: Counter[str] = Counter(r.linter_name for r in results)
 
     table = Table(title="[bold red]Findings Summary[/bold red]")

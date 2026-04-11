@@ -57,20 +57,24 @@ class Config:
             return cls()
 
     def normalize(self) -> None:
-        """Normalize list-based fields to predictable lowercase values."""
+        """Normalise all fields to canonical lower-case, stripped values.
+
+        Lowercases ``provider``, strips whitespace from ``model``, and
+        applies ``_normalize_linter_list`` to both linter lists (lowercase,
+        deduplicate, preserve insertion order). Called automatically by
+        :meth:`load` and :meth:`save`.
+        """
         self.provider = self.provider.strip().lower()
         self.model = self.model.strip()
         self.only_linters = _normalize_linter_list(self.only_linters)
         self.skip_linters = _normalize_linter_list(self.skip_linters)
 
     def save(self, path: Path | None = None) -> None:
-        """Save the current configuration to a TOML file.
+        """Normalise and persist the current configuration to a TOML file.
 
         Args:
-            path: Path to the configuration file. Defaults to codereview.toml.
-
-        Returns:
-            None
+            path: Destination path. Defaults to ``codereview.toml`` in the
+                current working directory.
         """
         self.normalize()
         config_path = path or Path("codereview.toml")
@@ -89,6 +93,14 @@ class Config:
 
 
 def _normalize_linter_list(values: list[str]) -> list[str]:
-    """Normalize and deduplicate linter values preserving order."""
+    """Lowercase, strip, and deduplicate a list of linter names.
+
+    Args:
+        values: Raw list of linter name strings.
+
+    Returns:
+        An order-preserving list with each entry lowercased and stripped,
+        and any duplicates removed.
+    """
     normalized = [value.strip().lower() for value in values if value.strip()]
     return list(dict.fromkeys(normalized))

@@ -13,13 +13,10 @@ class Engine:
     # pylint: disable=too-few-public-methods
 
     def __init__(self, linters: list[BaseLinter]) -> None:
-        """Initialize the engine with a list of linters.
+        """Initialise the engine with a list of linters.
 
         Args:
             linters: A list of linter instances to execute.
-
-        Returns:
-            None
         """
         self.linters = linters
 

@@ -40,10 +40,16 @@ def get_env_var_for_provider(provider: str) -> str | None:
 
 
 def get_api_key_for_provider(provider: str) -> str | None:
-    """Get API key from environment first, then keychain.
+    """Get the API key for a provider from environment or keyring.
 
-    Environment variables take precedence because they are commonly used
-    in CI or explicit shell-based overrides.
+    Environment variables take precedence over keyring, which is useful
+    for CI environments and explicit shell-based overrides.
+
+    Args:
+        provider: The name of the AI provider (e.g., ``openai``).
+
+    Returns:
+        The API key string, or ``None`` if not found in any source.
     """
     load_dotenv()
     env_var = get_env_var_for_provider(provider)
@@ -87,10 +93,15 @@ def save_api_key(env_var: str, api_key: str) -> None:
 
 
 def save_provider_api_key(provider: str, api_key: str) -> str:
-    """Save provider API key to OS keychain, falling back to .env.
+    """Save a provider API key to OS keychain, falling back to ``.env``.
+
+    Args:
+        provider: The name of the AI provider.
+        api_key: The API key value to store.
 
     Returns:
-        Storage backend name: ``keychain`` or ``.env``.
+        The storage backend used: ``"keychain"``, ``".env"``, or ``"none"``
+        when the provider has no associated environment variable.
     """
     env_var = get_env_var_for_provider(provider)
     if not env_var:
