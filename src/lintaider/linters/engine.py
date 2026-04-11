@@ -3,8 +3,8 @@
 import asyncio
 from pathlib import Path
 
-from codereview.linters.base import BaseLinter
-from codereview.linters.result import LinterResult
+from lintaider.linters.base import BaseLinter
+from lintaider.linters.result import LinterResult
 
 
 class Engine:

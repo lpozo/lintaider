@@ -7,13 +7,13 @@ import requests
 from dotenv import load_dotenv
 from litellm import acompletion
 
-from codereview.ai.auth import get_api_key_for_provider
-from codereview.ai.base import AIFixProposal, BaseAIProvider
-from codereview.ai.registry import get_provider_spec
-from codereview.linters.result import LinterResult
+from lintaider.ai.auth import get_api_key_for_provider
+from lintaider.ai.base import AIFixProposal, BaseAIProvider
+from lintaider.ai.registry import get_provider_spec
+from lintaider.linters.result import LinterResult
 
 if TYPE_CHECKING:
-    from codereview.ai.registry import ProviderSpec
+    from lintaider.ai.registry import ProviderSpec
 
 # Load .env file if it exists
 load_dotenv()

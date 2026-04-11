@@ -10,5 +10,5 @@ wheels/
 .venv
 
 # Config files
-codereview.toml
+lintaider.toml
 scan-result.json

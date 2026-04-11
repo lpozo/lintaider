@@ -1,6 +1,6 @@
 """Tests for context extraction."""
 
-from codereview.linters.context import (
+from lintaider.linters.context import (
     extract_snippet,
     format_snippet,
     get_context_bounds,

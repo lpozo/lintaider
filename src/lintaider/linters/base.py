@@ -5,7 +5,7 @@ import asyncio
 from dataclasses import dataclass
 from pathlib import Path
 
-from codereview.linters.result import LinterResult
+from lintaider.linters.result import LinterResult
 
 
 @dataclass  # pylint: disable=too-few-public-methods

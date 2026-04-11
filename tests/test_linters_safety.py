@@ -4,8 +4,8 @@ import json
 from pathlib import Path
 
 import pytest
-from codereview.linters.safety import SafetyLinter, _extract_json
-from codereview.linters.base import AsyncCompletedProcess
+from lintaider.linters.safety import SafetyLinter, _extract_json
+from lintaider.linters.base import AsyncCompletedProcess
 
 
 @pytest.fixture

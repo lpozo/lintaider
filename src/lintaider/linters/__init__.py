@@ -4,9 +4,9 @@ import importlib
 import pkgutil
 from pathlib import Path
 
-from codereview.linters.base import BaseLinter
-from codereview.linters.engine import Engine
-from codereview.linters.result import LinterResult
+from lintaider.linters.base import BaseLinter
+from lintaider.linters.engine import Engine
+from lintaider.linters.result import LinterResult
 
 
 def _discover_linters() -> dict[str, type[BaseLinter]]:
@@ -26,7 +26,7 @@ def _discover_linters() -> dict[str, type[BaseLinter]]:
             continue
 
         try:
-            module = importlib.import_module(f"codereview.linters.{module_name}")
+            module = importlib.import_module(f"lintaider.linters.{module_name}")
             for attr_name in dir(module):
                 attr = getattr(module, attr_name)
                 if (

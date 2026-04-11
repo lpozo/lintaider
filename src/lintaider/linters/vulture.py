@@ -3,9 +3,9 @@
 import re
 from pathlib import Path
 
-from codereview.linters.base import AsyncCompletedProcess, BaseLinter
-from codereview.linters.context import get_linter_context
-from codereview.linters.result import LinterResult
+from lintaider.linters.base import AsyncCompletedProcess, BaseLinter
+from lintaider.linters.context import get_linter_context
+from lintaider.linters.result import LinterResult
 
 
 class VultureLinter(BaseLinter):

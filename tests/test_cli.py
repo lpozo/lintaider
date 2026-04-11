@@ -1,21 +1,21 @@
-"""Tests for the CodeReviewer CLI interface."""
+"""Tests for the LintAIderer CLI interface."""
 
 from unittest.mock import AsyncMock
 
 import pytest
 from click.testing import CliRunner
 
-from codereview.ai import AIFixProposal
-from codereview.cli import main
-from codereview.config import Config
-from codereview.linters.result import LinterResult
+from lintaider.ai import AIFixProposal
+from lintaider.cli import main
+from lintaider.config import Config
+from lintaider.linters.result import LinterResult
 
 
 @pytest.fixture
 def mock_config(mocker):
     """Fixture to mock Config.load with defaults."""
     return mocker.patch(
-        "codereview.cli.init_handler.Config.load", return_value=Config()
+        "lintaider.cli.init_handler.Config.load", return_value=Config()
     )
 
 
@@ -26,7 +26,7 @@ def test_cli_scan_no_issues(mocker, tmp_path, mock_config) -> None:
     test_file.write_text("def ok():\n    return 1\n", encoding="utf-8")
 
     mocker.patch(
-        "codereview.cli.scan_handler.Engine.run_all",
+        "lintaider.cli.scan_handler.Engine.run_all",
         new_callable=AsyncMock,
         return_value=[],
     )
@@ -57,7 +57,7 @@ def test_cli_scan_with_issues(mocker, tmp_path, mock_config) -> None:
     )
 
     mocker.patch(
-        "codereview.cli.scan_handler.Engine.run_all",
+        "lintaider.cli.scan_handler.Engine.run_all",
         new_callable=AsyncMock,
         return_value=[fake_result],
     )
@@ -100,7 +100,7 @@ def test_cli_fix_with_issue_skip(mocker, tmp_path, mock_config) -> None:
 
     proposal = AIFixProposal(explanation="Fix", code_diff="import good")
     mocker.patch(
-        "codereview.cli.fix_handler.create_ai_provider",
+        "lintaider.cli.fix_handler.create_ai_provider",
     ).return_value.generate_fixes = AsyncMock(return_value=[proposal])
 
     result = runner.invoke(main, ["fix", "--input", str(input_file)], input="s\n")
@@ -131,7 +131,7 @@ def test_cli_scan_verbose(mocker, tmp_path, mock_config) -> None:
     )
 
     mocker.patch(
-        "codereview.cli.scan_handler.Engine.run_all",
+        "lintaider.cli.scan_handler.Engine.run_all",
         new_callable=AsyncMock,
         return_value=[fake_result],
     )
@@ -154,7 +154,7 @@ def test_cli_scan_only_filter(mocker, tmp_path, mock_config) -> None:
     test_file = tmp_path / "valid.py"
     test_file.write_text("print(1)\n", encoding="utf-8")
 
-    mock_engine = mocker.patch("codereview.cli.scan_handler.Engine")
+    mock_engine = mocker.patch("lintaider.cli.scan_handler.Engine")
 
     runner.invoke(main, ["scan", str(test_file), "--only", "ruff"])
 
@@ -171,7 +171,7 @@ def test_cli_scan_skip_filter(mocker, tmp_path, mock_config) -> None:
     test_file = tmp_path / "valid.py"
     test_file.write_text("print(1)\n", encoding="utf-8")
 
-    mock_engine = mocker.patch("codereview.cli.scan_handler.Engine")
+    mock_engine = mocker.patch("lintaider.cli.scan_handler.Engine")
 
     runner.invoke(
         main,
@@ -191,13 +191,13 @@ def test_cli_scan_skip_filter(mocker, tmp_path, mock_config) -> None:
 def test_cli_init_command(mocker, tmp_path) -> None:
     """Test the redesigned init command flow."""
     runner = CliRunner()
-    _ = tmp_path / "codereview.toml"
+    _ = tmp_path / "lintaider.toml"
 
     config = Config()
-    mocker.patch("codereview.cli.init_handler.Config.load", return_value=config)
-    mocker.patch("codereview.cli.init_handler.list_provider_models", return_value=[])
+    mocker.patch("lintaider.cli.init_handler.Config.load", return_value=config)
+    mocker.patch("lintaider.cli.init_handler.list_provider_models", return_value=[])
     mocker.patch(
-        "codereview.cli.init_handler.save_provider_api_key", return_value="keychain"
+        "lintaider.cli.init_handler.save_provider_api_key", return_value="keychain"
     )
     mock_save = mocker.patch.object(Config, "save")
 
@@ -214,7 +214,7 @@ def test_cli_init_command(mocker, tmp_path) -> None:
 
 def test_cli_apply_patch_fuzzy(tmp_path) -> None:
     """Test that _apply_patch works even if lines have shifted."""
-    from codereview.cli.fix_handler import _apply_patch
+    from lintaider.cli.fix_handler import _apply_patch
 
     test_file = tmp_path / "fuzzy.py"
     # Original content: 3 lines
@@ -237,7 +237,7 @@ def test_cli_apply_patch_fuzzy(tmp_path) -> None:
 
 def test_init_helper_parse_linter_list() -> None:
     """Test linter list parsing helper."""
-    from codereview.cli.init_handler import _parse_linter_list
+    from lintaider.cli.init_handler import _parse_linter_list
 
     # Normal case
     result = _parse_linter_list("ruff, pylint, bandit")
@@ -262,12 +262,12 @@ def test_init_helper_parse_linter_list() -> None:
 
 def test_init_helper_select_linter_preferences(mocker) -> None:
     """Test linter preference selection with validation."""
-    from codereview.cli.init_handler import _select_linter_preferences
+    from lintaider.cli.init_handler import _select_linter_preferences
 
     config = Config(skip_linters=["ruff"], only_linters=[])
 
     mocker.patch(
-        "codereview.cli.init_handler.click.prompt",
+        "lintaider.cli.init_handler.click.prompt",
         side_effect=["ruff,pylint", ""],  # skip, only
     )
 
@@ -278,12 +278,12 @@ def test_init_helper_select_linter_preferences(mocker) -> None:
 
 def test_init_helper_select_linter_preferences_invalid(mocker) -> None:
     """Test that invalid linter names are handled gracefully."""
-    from codereview.cli.init_handler import _select_linter_preferences
+    from lintaider.cli.init_handler import _select_linter_preferences
 
     config = Config()
 
     mocker.patch(
-        "codereview.cli.init_handler.click.prompt",
+        "lintaider.cli.init_handler.click.prompt",
         side_effect=["ruff,invalid_linter", ""],
     )
 
@@ -294,12 +294,12 @@ def test_init_helper_select_linter_preferences_invalid(mocker) -> None:
 
 def test_init_helper_select_linter_preferences_overlap(mocker) -> None:
     """Test overlap removal between skip and only linters."""
-    from codereview.cli.init_handler import _select_linter_preferences
+    from lintaider.cli.init_handler import _select_linter_preferences
 
     config = Config()
 
     mocker.patch(
-        "codereview.cli.init_handler.click.prompt",
+        "lintaider.cli.init_handler.click.prompt",
         side_effect=["ruff,pylint", "pylint,bandit"],  # pylint is in both
     )
 
@@ -311,10 +311,10 @@ def test_init_helper_select_linter_preferences_overlap(mocker) -> None:
 
 def test_init_helper_run_connectivity_check(mocker) -> None:
     """Test connectivity check during init."""
-    from codereview.cli.init_handler import _run_connectivity_check
+    from lintaider.cli.init_handler import _run_connectivity_check
 
     mocker.patch(
-        "codereview.cli.init_handler.verify_provider_connection",
+        "lintaider.cli.init_handler.verify_provider_connection",
         return_value=(True, "Connection successful"),
         new_callable=AsyncMock,
     )
@@ -325,10 +325,10 @@ def test_init_helper_run_connectivity_check(mocker) -> None:
 
 def test_init_helper_run_connectivity_check_failure(mocker) -> None:
     """Test connectivity check failure handling."""
-    from codereview.cli.init_handler import _run_connectivity_check
+    from lintaider.cli.init_handler import _run_connectivity_check
 
     mocker.patch(
-        "codereview.cli.init_handler.verify_provider_connection",
+        "lintaider.cli.init_handler.verify_provider_connection",
         return_value=(False, "Invalid API key"),
         new_callable=AsyncMock,
     )
@@ -339,9 +339,9 @@ def test_init_helper_run_connectivity_check_failure(mocker) -> None:
 
 def test_init_helper_select_api_base(mocker) -> None:
     """Test API base selection with provider defaults."""
-    from codereview.cli.init_handler import _select_api_base
+    from lintaider.cli.init_handler import _select_api_base
 
-    mocker.patch("codereview.cli.init_handler.click.prompt", return_value="")
+    mocker.patch("lintaider.cli.init_handler.click.prompt", return_value="")
 
     result = _select_api_base("ollama", None)
     assert result is None  # Empty input -> None
@@ -349,10 +349,10 @@ def test_init_helper_select_api_base(mocker) -> None:
 
 def test_init_helper_select_api_base_custom(mocker) -> None:
     """Test custom API base override."""
-    from codereview.cli.init_handler import _select_api_base
+    from lintaider.cli.init_handler import _select_api_base
 
     mocker.patch(
-        "codereview.cli.init_handler.click.prompt",
+        "lintaider.cli.init_handler.click.prompt",
         return_value="http://custom:8080",
     )
 
@@ -362,7 +362,7 @@ def test_init_helper_select_api_base_custom(mocker) -> None:
 
 def test_init_helper_update_provider_api_key_local(mocker) -> None:
     """Test that local providers skip API key prompt."""
-    from codereview.cli.init_handler import _update_provider_api_key
+    from lintaider.cli.init_handler import _update_provider_api_key
 
     result = _update_provider_api_key("ollama")
     assert result is None  # Ollama needs no API key
@@ -370,14 +370,14 @@ def test_init_helper_update_provider_api_key_local(mocker) -> None:
 
 def test_init_helper_update_provider_api_key_cloud(mocker) -> None:
     """Test API key capture for cloud providers."""
-    from codereview.cli.init_handler import _update_provider_api_key
+    from lintaider.cli.init_handler import _update_provider_api_key
 
     mocker.patch(
-        "codereview.cli.init_handler.get_api_key_for_provider", return_value=None
+        "lintaider.cli.init_handler.get_api_key_for_provider", return_value=None
     )
-    mocker.patch("codereview.cli.init_handler.click.prompt", return_value="sk-test123")
+    mocker.patch("lintaider.cli.init_handler.click.prompt", return_value="sk-test123")
     mocker.patch(
-        "codereview.cli.init_handler.save_provider_api_key", return_value="keychain"
+        "lintaider.cli.init_handler.save_provider_api_key", return_value="keychain"
     )
 
     result = _update_provider_api_key("openai")
@@ -386,13 +386,13 @@ def test_init_helper_update_provider_api_key_cloud(mocker) -> None:
 
 def test_init_helper_update_provider_api_key_keep_existing(mocker) -> None:
     """Test keeping existing API key when new one is not provided."""
-    from codereview.cli.init_handler import _update_provider_api_key
+    from lintaider.cli.init_handler import _update_provider_api_key
 
     mocker.patch(
-        "codereview.cli.init_handler.get_api_key_for_provider",
+        "lintaider.cli.init_handler.get_api_key_for_provider",
         return_value="existing_key",
     )
-    mocker.patch("codereview.cli.init_handler.click.prompt", return_value="")
+    mocker.patch("lintaider.cli.init_handler.click.prompt", return_value="")
 
     result = _update_provider_api_key("openai")
     assert result == "existing_key"
@@ -400,13 +400,13 @@ def test_init_helper_update_provider_api_key_keep_existing(mocker) -> None:
 
 def test_init_helper_select_model_with_discovery(mocker) -> None:
     """Test model selection with successful discovery."""
-    from codereview.cli.init_handler import _select_model
+    from lintaider.cli.init_handler import _select_model
 
     mocker.patch(
-        "codereview.cli.init_handler.list_provider_models",
+        "lintaider.cli.init_handler.list_provider_models",
         return_value=["gpt-4o", "gpt-4o-mini", "gpt-3.5-turbo"],
     )
-    mocker.patch("codereview.cli.init_handler.click.prompt", return_value="1")
+    mocker.patch("lintaider.cli.init_handler.click.prompt", return_value="1")
 
     result = _select_model("openai", "gpt-4o", None, "test_key")
     assert result == "gpt-4o"
@@ -414,13 +414,13 @@ def test_init_helper_select_model_with_discovery(mocker) -> None:
 
 def test_init_helper_select_model_discovery_failed(mocker) -> None:
     """Test model selection falls back to recommended when discovery fails."""
-    from codereview.cli.init_handler import _select_model
+    from lintaider.cli.init_handler import _select_model
 
     mocker.patch(
-        "codereview.cli.init_handler.list_provider_models",
+        "lintaider.cli.init_handler.list_provider_models",
         return_value=[],  # Discovery failed
     )
-    mocker.patch("codereview.cli.init_handler.click.prompt", return_value="1")
+    mocker.patch("lintaider.cli.init_handler.click.prompt", return_value="1")
 
     result = _select_model("openai", "", None, None)
     # Should use recommended models from provider spec
@@ -429,9 +429,9 @@ def test_init_helper_select_model_discovery_failed(mocker) -> None:
 
 def test_init_helper_select_provider(mocker) -> None:
     """Test provider selection menu."""
-    from codereview.cli.init_handler import _select_provider
+    from lintaider.cli.init_handler import _select_provider
 
-    mocker.patch("codereview.cli.init_handler.click.prompt", return_value="1")
+    mocker.patch("lintaider.cli.init_handler.click.prompt", return_value="1")
 
     result = _select_provider("ollama")
     assert result == "ollama"  # First provider in PROVIDER_SPECS
@@ -439,9 +439,9 @@ def test_init_helper_select_provider(mocker) -> None:
 
 def test_init_helper_select_provider_by_name(mocker) -> None:
     """Test provider selection by entering provider name."""
-    from codereview.cli.init_handler import _select_provider
+    from lintaider.cli.init_handler import _select_provider
 
-    mocker.patch("codereview.cli.init_handler.click.prompt", return_value="openai")
+    mocker.patch("lintaider.cli.init_handler.click.prompt", return_value="openai")
 
     result = _select_provider("ollama")
     assert result == "openai"

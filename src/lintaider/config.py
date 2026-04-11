@@ -1,4 +1,4 @@
-"""Configuration management for CodeReview."""
+"""Configuration management for LintAIder."""
 
 import tomllib
 from dataclasses import dataclass, field
@@ -22,13 +22,13 @@ class Config:
         """Load configuration from a TOML file and environment variables.
 
         Args:
-            path: Path to the configuration file. Defaults to codereview.toml.
+            path: Path to the configuration file. Defaults to lintaider.toml.
 
         Returns:
             A Config instance.
         """
         load_dotenv()
-        config_path = path or Path("codereview.toml")
+        config_path = path or Path("lintaider.toml")
 
         if not config_path.exists():
             return cls()
@@ -73,11 +73,11 @@ class Config:
         """Normalise and persist the current configuration to a TOML file.
 
         Args:
-            path: Destination path. Defaults to ``codereview.toml`` in the
+            path: Destination path. Defaults to ``lintaider.toml`` in the
                 current working directory.
         """
         self.normalize()
-        config_path = path or Path("codereview.toml")
+        config_path = path or Path("lintaider.toml")
 
         lines = ["[ai]\n"]
         lines.append(f'provider = "{self.provider}"\n')

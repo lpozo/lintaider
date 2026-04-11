@@ -1,14 +1,14 @@
-"""Main entry point for the CodeReview CLI package."""
+"""Main entry point for the LintAIder CLI package."""
 
 import asyncio
 from pathlib import Path
 
 import click
 
-from codereview.cli.fix_handler import handle_fix
-from codereview.cli.init_handler import handle_init
-from codereview.cli.scan_handler import handle_scan
-from codereview.cli.ui import SCAN_RESULT_FILE
+from lintaider.cli.fix_handler import handle_fix
+from lintaider.cli.init_handler import handle_init
+from lintaider.cli.scan_handler import handle_scan
+from lintaider.cli.ui import SCAN_RESULT_FILE
 
 
 @click.group()
@@ -18,7 +18,7 @@ def main() -> None:
 
 @main.command()
 def init() -> None:  # vulture: ignore
-    """Initialize configuration for CodeReview."""
+    """Initialize configuration for LintAIder."""
     handle_init()
 
 

@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from codereview.ai.auth import (
+from lintaider.ai.auth import (
     KEYRING_SERVICE_NAME,
     get_api_key_for_provider,
     get_env_var_for_provider,
@@ -33,7 +33,7 @@ def test_get_env_var_for_provider_case_insensitive() -> None:
 def test_save_api_key_new_file(tmp_path) -> None:
     """Test saving API key to a new .env file."""
     env_file = tmp_path / ".env"
-    with patch("codereview.ai.auth.Path", return_value=env_file):
+    with patch("lintaider.ai.auth.Path", return_value=env_file):
         save_api_key("TEST_KEY", "secret123")
 
     content = env_file.read_text(encoding="utf-8")
@@ -46,7 +46,7 @@ def test_save_api_key_existing_file(tmp_path) -> None:
     env_file = tmp_path / ".env"
     env_file.write_text('OTHER_KEY="value"\n', encoding="utf-8")
 
-    with patch("codereview.ai.auth.Path", return_value=env_file):
+    with patch("lintaider.ai.auth.Path", return_value=env_file):
         save_api_key("TEST_KEY", "secret123")
 
     content = env_file.read_text(encoding="utf-8")
@@ -59,7 +59,7 @@ def test_save_api_key_replace_existing(tmp_path) -> None:
     env_file = tmp_path / ".env"
     env_file.write_text('TEST_KEY="old_secret"\n', encoding="utf-8")
 
-    with patch("codereview.ai.auth.Path", return_value=env_file):
+    with patch("lintaider.ai.auth.Path", return_value=env_file):
         save_api_key("TEST_KEY", "new_secret")
 
     content = env_file.read_text(encoding="utf-8")
@@ -70,7 +70,7 @@ def test_save_api_key_replace_existing(tmp_path) -> None:
 def test_get_api_key_for_provider_from_env(monkeypatch) -> None:
     """Test retrieving API key from environment variable."""
     monkeypatch.setenv("OPENAI_API_KEY", "env_secret")
-    with patch("codereview.ai.auth.load_dotenv"):
+    with patch("lintaider.ai.auth.load_dotenv"):
         key = get_api_key_for_provider("openai")
 
     assert key == "env_secret"
@@ -79,8 +79,8 @@ def test_get_api_key_for_provider_from_env(monkeypatch) -> None:
 def test_get_api_key_for_provider_no_env_no_keyring() -> None:
     """Test retrieval returns None when no env var and keyring unavailable."""
     with (
-        patch("codereview.ai.auth.load_dotenv"),
-        patch("codereview.ai.auth.keyring_module", None),
+        patch("lintaider.ai.auth.load_dotenv"),
+        patch("lintaider.ai.auth.keyring_module", None),
         patch.dict(os.environ, {}, clear=True),
     ):
         key = get_api_key_for_provider("openai")
@@ -94,8 +94,8 @@ def test_get_api_key_for_provider_from_keyring() -> None:
     mock_keyring.get_password.return_value = "keyring_secret"
 
     with (
-        patch("codereview.ai.auth.load_dotenv"),
-        patch("codereview.ai.auth.keyring_module", mock_keyring),
+        patch("lintaider.ai.auth.load_dotenv"),
+        patch("lintaider.ai.auth.keyring_module", mock_keyring),
         patch.dict(os.environ, {}, clear=True),
     ):
         key = get_api_key_for_provider("openai")
@@ -113,8 +113,8 @@ def test_get_api_key_for_provider_env_precedence(monkeypatch) -> None:
     monkeypatch.setenv("OPENAI_API_KEY", "env_secret")
 
     with (
-        patch("codereview.ai.auth.load_dotenv"),
-        patch("codereview.ai.auth.keyring_module", mock_keyring),
+        patch("lintaider.ai.auth.load_dotenv"),
+        patch("lintaider.ai.auth.keyring_module", mock_keyring),
     ):
         key = get_api_key_for_provider("openai")
 
@@ -128,8 +128,8 @@ def test_get_api_key_for_provider_keyring_exception() -> None:
     mock_keyring.get_password.side_effect = Exception("Keyring error")
 
     with (
-        patch("codereview.ai.auth.load_dotenv"),
-        patch("codereview.ai.auth.keyring_module", mock_keyring),
+        patch("lintaider.ai.auth.load_dotenv"),
+        patch("lintaider.ai.auth.keyring_module", mock_keyring),
         patch.dict(os.environ, {}, clear=True),
     ):
         key = get_api_key_for_provider("openai")
@@ -141,7 +141,7 @@ def test_save_provider_api_key_to_keyring() -> None:
     """Test saving provider API key to keyring."""
     mock_keyring = MagicMock()
 
-    with patch("codereview.ai.auth.keyring_module", mock_keyring):
+    with patch("lintaider.ai.auth.keyring_module", mock_keyring):
         backend = save_provider_api_key("openai", "secret123")
 
     assert backend == "keychain"
@@ -157,8 +157,8 @@ def test_save_provider_api_key_fallback_to_env(tmp_path) -> None:
     mock_keyring.set_password.side_effect = Exception("Keyring not available")
 
     with (
-        patch("codereview.ai.auth.keyring_module", mock_keyring),
-        patch("codereview.ai.auth.Path", return_value=env_file),
+        patch("lintaider.ai.auth.keyring_module", mock_keyring),
+        patch("lintaider.ai.auth.Path", return_value=env_file),
     ):
         backend = save_provider_api_key("openai", "secret123")
 
@@ -175,7 +175,7 @@ def test_save_provider_api_key_no_env_var() -> None:
 def test_get_api_key_for_provider_no_provider_spec() -> None:
     """Test retrieval with provider not in registry falls back to old map."""
     with (
-        patch("codereview.ai.auth.load_dotenv"),
+        patch("lintaider.ai.auth.load_dotenv"),
         patch.dict(os.environ, {"OPENAI_API_KEY": "test_key"}),
     ):
         key = get_api_key_for_provider("openai")

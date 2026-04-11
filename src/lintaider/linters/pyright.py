@@ -1,20 +1,20 @@
-"""Pylint linter implementation."""
+"""Pyright linter implementation for static type checking."""
 
 import json
 from pathlib import Path
 
-from codereview.linters.base import AsyncCompletedProcess, BaseLinter
-from codereview.linters.context import get_linter_context
-from codereview.linters.result import LinterResult
+from lintaider.linters.base import AsyncCompletedProcess, BaseLinter
+from lintaider.linters.context import get_linter_context
+from lintaider.linters.result import LinterResult
 
 
-class PylintLinter(BaseLinter):
-    """Linter implementation for Pylint."""
+class PyrightLinter(BaseLinter):
+    """Linter implementation for Pyright."""
 
-    name = "Pylint"
+    name = "Pyright"
 
     def build_command(self, target: Path) -> list[str]:
-        """Build the Pylint command for the target path.
+        """Build the Pyright command for the target path.
 
         Args:
             target: The file or directory to scan.
@@ -22,20 +22,14 @@ class PylintLinter(BaseLinter):
         Returns:
             A list of command arguments.
         """
-        return [
-            "uv",
-            "run",
-            "pylint",
-            "--output-format=json",
-            str(target.absolute()),
-        ]
+        return ["uv", "run", "pyright", "--outputjson", str(target.absolute())]
 
     def parse_output(
         self,
         process_result: AsyncCompletedProcess,
         target: Path,
     ) -> list[LinterResult]:
-        """Parse Pylint JSON output.
+        """Parse Pyright JSON output.
 
         Args:
             process_result: The completed process result.
@@ -46,21 +40,24 @@ class PylintLinter(BaseLinter):
         """
 
         try:
-            errors = json.loads(process_result.stdout)
+            data = json.loads(process_result.stdout)
+            diagnostics = data.get("generalDiagnostics", [])
         except json.JSONDecodeError:
             return []
 
         parsed_results = []
-        for error in errors:
-            file_path = Path(error.get("path", target.name))
+        for diag in diagnostics:
+            file_path = Path(diag.get("file", str(target)))
 
-            line_start = error.get("line", 1)
-            col_start = error.get("column", 1)
-            line_end = error.get("endLine")
-            col_end = error.get("endColumn")
+            # Pyright is 0-indexed, normalizing to 1-indexed for LinterResult
+            line_start = diag.get("range", {}).get("start", {}).get("line", 0) + 1
+            col_start = diag.get("range", {}).get("start", {}).get("character", 0) + 1
+            line_end = diag.get("range", {}).get("end", {}).get("line", 0) + 1
+            col_end = diag.get("range", {}).get("end", {}).get("character", 0) + 1
 
-            error_code = error.get("message-id", error.get("symbol", "Unknown"))
-            message = error.get("message", "Unknown error")
+            error_code = diag.get("rule", "Unknown")
+            severity = diag.get("severity", "error").upper()
+            message = f"[{severity}] {diag.get('message', 'No message')}"
 
             raw_snippet, snippet_start, semantic_info = get_linter_context(
                 file_path=file_path,

@@ -6,23 +6,23 @@ import click
 from rich.panel import Panel
 from rich.table import Table
 
-from codereview.ai.auth import (
+from lintaider.ai.auth import (
     get_api_key_for_provider,
     get_env_var_for_provider,
     save_provider_api_key,
 )
-from codereview.ai.provider import list_provider_models, verify_provider_connection
-from codereview.ai.registry import PROVIDER_SPECS, get_provider_spec
-from codereview.cli.ui import console
-from codereview.config import Config
-from codereview.linters import LINTER_MAP
+from lintaider.ai.provider import list_provider_models, verify_provider_connection
+from lintaider.ai.registry import PROVIDER_SPECS, get_provider_spec
+from lintaider.cli.ui import console
+from lintaider.config import Config
+from lintaider.linters import LINTER_MAP
 
 
 def handle_init() -> None:
     """Execute the interactive initialization flow."""
     config = Config.load()
 
-    console.print("[bold]CodeReview Setup Wizard[/bold]\n")
+    console.print("[bold]LintAIder Setup Wizard[/bold]\n")
 
     provider = _select_provider(config.provider)
     provider_spec = get_provider_spec(provider)
@@ -69,7 +69,7 @@ def handle_init() -> None:
             f"Provider: [bold]{config.provider}[/bold]\n"
             f"Model: [bold]{config.model}[/bold]\n"
             f"API Base: [bold]{config.api_base or 'Default'}[/bold]{storage_note}",
-            title="Configuration Saved to codereview.toml",
+            title="Configuration Saved to lintaider.toml",
             border_style="green",
         )
     )

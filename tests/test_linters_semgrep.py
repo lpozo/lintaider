@@ -4,15 +4,15 @@ import json
 from pathlib import Path
 
 import pytest
-from codereview.linters.semgrep import SemgrepLinter
-from codereview.linters.base import AsyncCompletedProcess
+from lintaider.linters.semgrep import SemgrepLinter
+from lintaider.linters.base import AsyncCompletedProcess
 
 
 @pytest.fixture(autouse=True)
 def _mock_get_context(mocker):
     """Mock get_linter_context to return dummy values."""
     return mocker.patch(
-        "codereview.linters.semgrep.get_linter_context",
+        "lintaider.linters.semgrep.get_linter_context",
         return_value=("snippet", 1, "context"),
     )
 

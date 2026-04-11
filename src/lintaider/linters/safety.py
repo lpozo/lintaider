@@ -4,8 +4,8 @@ import json
 import re
 from pathlib import Path
 
-from codereview.linters.base import AsyncCompletedProcess, BaseLinter
-from codereview.linters.result import LinterResult
+from lintaider.linters.base import AsyncCompletedProcess, BaseLinter
+from lintaider.linters.result import LinterResult
 
 
 class SafetyLinter(BaseLinter):

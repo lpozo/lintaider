@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from codereview.config import Config
+from lintaider.config import Config
 
 
 def test_config_default() -> None:
@@ -15,7 +15,7 @@ def test_config_default() -> None:
 
 def test_config_save_load(tmp_path) -> None:
     """Test saving and loading configuration from TOML."""
-    config_file = tmp_path / "codereview.toml"
+    config_file = tmp_path / "lintaider.toml"
     config = Config(
         provider="openai", model="gpt-4", api_base="https://api.openai.com/v1"
     )

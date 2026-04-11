@@ -9,12 +9,12 @@ import click
 from rich.panel import Panel
 from rich.syntax import Syntax
 
-from codereview.ai import AIFixProposal, create_ai_provider
-from codereview.cli.scan_handler import handle_scan
-from codereview.cli.ui import console
-from codereview.config import Config
-from codereview.linters.context import format_snippet
-from codereview.linters.result import LinterResult
+from lintaider.ai import AIFixProposal, create_ai_provider
+from lintaider.cli.scan_handler import handle_scan
+from lintaider.cli.ui import console
+from lintaider.config import Config
+from lintaider.linters.context import format_snippet
+from lintaider.linters.result import LinterResult
 
 
 async def handle_fix(
@@ -28,7 +28,7 @@ async def handle_fix(
     in the background while the user steps through them one by one.
 
     Args:
-        input_file: Path to the JSON file produced by ``codereview scan``.
+        input_file: Path to the JSON file produced by ``lintaider scan``.
         target: Optional file or directory to auto-scan when ``input_file``
             is missing.
     """
@@ -42,7 +42,7 @@ async def handle_fix(
         else:
             console.print(
                 f"[bold red]Error:[/bold red] {input_file} not found.\n"
-                "Please provide a target to scan: [bold]codereview fix <target>[/bold]"
+                "Please provide a target to scan: [bold]lintaider fix <target>[/bold]"
             )
             return
 

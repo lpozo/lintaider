@@ -5,18 +5,18 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from codereview.ai import (
+from lintaider.ai import (
     LiteLLMProvider,
     create_ai_provider,
     list_provider_models,
     verify_provider_connection,
 )
-from codereview.ai.registry import (
+from lintaider.ai.registry import (
     PROVIDER_SPECS,
     get_provider_spec,
     get_supported_providers,
 )
-from codereview.linters.result import LinterResult
+from lintaider.linters.result import LinterResult
 
 
 def test_create_ai_provider() -> None:
@@ -42,7 +42,7 @@ def test_create_ai_provider() -> None:
 
 
 @pytest.mark.asyncio
-@patch("codereview.ai.provider.acompletion", new_callable=AsyncMock)
+@patch("lintaider.ai.provider.acompletion", new_callable=AsyncMock)
 async def test_litellm_provider(mock_acompletion) -> None:
     """Test LiteLLMProvider integration."""
     mock_acompletion.return_value.choices[
@@ -117,7 +117,7 @@ def test_get_supported_providers() -> None:
     assert "openai" in providers
 
 
-@patch("codereview.ai.provider.requests.get")
+@patch("lintaider.ai.provider.requests.get")
 def test_list_provider_models_ollama(mock_get) -> None:
     """Test model discovery for Ollama."""
     mock_response = MagicMock()
@@ -135,7 +135,7 @@ def test_list_provider_models_ollama(mock_get) -> None:
     mock_get.assert_called_once()
 
 
-@patch("codereview.ai.provider.requests.get")
+@patch("lintaider.ai.provider.requests.get")
 def test_list_provider_models_openai(mock_get) -> None:
     """Test model discovery for OpenAI."""
     mock_response = MagicMock()
@@ -153,7 +153,7 @@ def test_list_provider_models_openai(mock_get) -> None:
     mock_get.assert_called_once()
 
 
-@patch("codereview.ai.provider.requests.get")
+@patch("lintaider.ai.provider.requests.get")
 def test_list_provider_models_gemini_cleanup(mock_get) -> None:
     """Test model discovery for Google Gemini with name cleanup."""
     mock_response = MagicMock()
@@ -171,7 +171,7 @@ def test_list_provider_models_gemini_cleanup(mock_get) -> None:
     assert not any("models/" in m for m in models)
 
 
-@patch("codereview.ai.provider.requests.get")
+@patch("lintaider.ai.provider.requests.get")
 def test_list_provider_models_request_failure(mock_get) -> None:
     """Test graceful failure when model discovery fails."""
     import requests
@@ -189,7 +189,7 @@ def test_list_provider_models_unsupported_provider() -> None:
 
 
 @pytest.mark.asyncio
-@patch("codereview.ai.provider.acompletion", new_callable=AsyncMock)
+@patch("lintaider.ai.provider.acompletion", new_callable=AsyncMock)
 async def test_verify_provider_connection_success(mock_acompletion) -> None:
     """Test successful provider connectivity check."""
     mock_acompletion.return_value.choices[0].message.content = "OK"
@@ -203,7 +203,7 @@ async def test_verify_provider_connection_success(mock_acompletion) -> None:
 
 
 @pytest.mark.asyncio
-@patch("codereview.ai.provider.acompletion", new_callable=AsyncMock)
+@patch("lintaider.ai.provider.acompletion", new_callable=AsyncMock)
 async def test_verify_provider_connection_failure(mock_acompletion) -> None:
     """Test failed provider connectivity check."""
     mock_acompletion.side_effect = Exception("Invalid API key")
@@ -221,7 +221,7 @@ def test_create_ai_provider_with_keychain() -> None:
     mock_keyring = MagicMock()
     mock_keyring.get_password.return_value = "keyring_key"
 
-    with patch("codereview.ai.auth.keyring_module", mock_keyring):
+    with patch("lintaider.ai.auth.keyring_module", mock_keyring):
         provider = create_ai_provider("openai", "gpt-4o")
 
     assert provider.api_key in ("keyring_key", None)  # May or may not fetch

@@ -1,18 +1,23 @@
-# CodeReview: AI-Powered Auto-Fixer
+# LintAIder
 
-**CodeReview** is an advanced code auditing tool that combines multiple linters with the power of Artificial Intelligence (LLMs) to automatically and concurrently find and fix issues.
+LintAIder is an AI-assisted code auditing and auto-fix CLI for Python projects.
+It runs multiple linters concurrently, aggregates findings into a unified format,
+and lets you apply AI-generated fixes interactively.
 
-## Features
+## Highlights
 
--   **Asynchronous Engine**: Scans your code with multiple linters in parallel using `asyncio`.
--   **Background AI**: Generates fix suggestions while you review previous findings.
--   **Professional Configuration**: `init` command to configure providers (OpenAI, Anthropic, Ollama, Gemini) persistently.
--   **Multi-Linter**: Native support for Ruff, Pylint, Bandit, MyPy, Pyright, Semgrep, Vulture, Radon, and Safety.
--   **Smart Auto-Fixer**: Applies AI-suggested patches using *Fuzzy Matching* algorithms.
+- Async linter orchestration with `asyncio`
+- AI provider support via LiteLLM (`ollama`, `openai`, `anthropic`, `gemini`)
+- Interactive onboarding (`init`) with model discovery and connectivity checks
+- Unified issue model across linters
+- Interactive patch application with fuzzy matching fallback
+
+## Requirements
+
+- Python 3.12+
+- [uv](https://github.com/astral-sh/uv)
 
 ## Installation
-
-Requires [uv](https://github.com/astral-sh/uv) for dependency management:
 
 ```bash
 git clone <repository-url>
@@ -20,69 +25,113 @@ cd codereview
 uv sync
 ```
 
-## Initial Setup
-
-Before diving in, configure your preferred AI provider:
-
-```bash
-uv run codereview init
-```
-
-This will create a `codereview.toml` file with your preferences and a `.env` file for your API keys.
-
 ## Quick Start
 
-### 1. Scan the code
-Detect issues in files or directories:
+### 1. Initialize
 
 ```bash
-uv run codereview scan src/ -v
+uv run lintaider init
 ```
 
-### 2. Apply fixes
-Start the interactive flow. If you haven't run `scan` before, you can pass the target directly:
+This command creates or updates:
+
+- `lintaider.toml` for provider/model/linter defaults
+- `.env` for API keys when keychain storage is unavailable
+
+### 2. Scan
 
 ```bash
-# Scans and then starts the fixer in a single step
-uv run codereview fix src/
+uv run lintaider scan src/
 ```
 
-If you already have a `scan-result.json` file, simply run:
+Verbose output:
 
 ```bash
-uv run codereview fix
+uv run lintaider scan src/ -v
 ```
 
-### Filtering options
-You can exclusively run specific linters or skip others:
+Custom output file:
 
 ```bash
-# Only run Ruff and MyPy
-uv run codereview scan . --only ruff,mypy
-
-# Skip Safety (dependency scanning)
-uv run codereview scan . --skip safety
+uv run lintaider scan src/ -o my-scan.json
 ```
+
+### 3. Fix
+
+Use existing scan results (`scan-result.json` by default):
+
+```bash
+uv run lintaider fix
+```
+
+Provide a specific results file:
+
+```bash
+uv run lintaider fix --input my-scan.json
+```
+
+Scan then fix in one command:
+
+```bash
+uv run lintaider fix src/
+```
+
+## Linter Filtering
+
+Run only selected linters:
+
+```bash
+uv run lintaider scan . --only ruff,mypy
+```
+
+Skip selected linters:
+
+```bash
+uv run lintaider scan . --skip safety
+```
+
+You can also set default `only_linters` and `skip_linters` values in
+`lintaider.toml` via `uv run lintaider init`.
 
 ## Supported Linters
 
-| Linter | Specialty |
-| :--- | :--- |
-| **Ruff** | Style and common errors (Blazing fast) |
-| **Pylint** | Deep static analysis and maintainability |
-| **Bandit** | Code security vulnerabilities |
-| **MyPy** | Official static type checking |
-| **Pyright** | Ultra-fast Microsoft type checking |
-| **Semgrep** | Semantic analysis and advanced security |
-| **Vulture** | Dead code and unused function detection |
-| **Radon** | Cyclomatic Complexity metric (Maintainability) |
-| **Safety** | Vulnerability scanning in installed dependencies |
+- Ruff
+- Pylint
+- Bandit
+- MyPy
+- Pyright
+- Semgrep
+- Vulture
+- Radon
+- Safety
 
-## Testing
+## Configuration
+
+LintAIder stores settings in `lintaider.toml`:
+
+```toml
+[ai]
+provider = "ollama"
+model = "llama3"
+# api_base = "http://localhost:11434"
+
+[linters]
+only_linters = []
+skip_linters = []
+```
+
+Environment variables override stored credentials when present.
+
+## Development
+
+Run tests:
 
 ```bash
 uv run pytest
 ```
 
----
-*Developed with advanced asynchronous architecture for an instant experience.*
+Run a project scan:
+
+```bash
+uv run lintaider scan src
+```

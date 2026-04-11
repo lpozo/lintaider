@@ -1,7 +1,7 @@
 """AI package initialization."""
 
-from codereview.ai.base import AIFixProposal, BaseAIProvider
-from codereview.ai.provider import (
+from lintaider.ai.base import AIFixProposal, BaseAIProvider
+from lintaider.ai.provider import (
     LiteLLMProvider,
     create_ai_provider,
     list_provider_models,

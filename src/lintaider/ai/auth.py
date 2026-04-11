@@ -7,7 +7,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-from codereview.ai.registry import get_provider_spec
+from lintaider.ai.registry import get_provider_spec
 
 try:
     import keyring as keyring_module
@@ -21,7 +21,7 @@ PROVIDER_ENV_MAP: dict[str, str] = {
     "gemini": "GEMINI_API_KEY",
 }
 
-KEYRING_SERVICE_NAME = "codereview"
+KEYRING_SERVICE_NAME = "lintaider"
 
 
 def get_env_var_for_provider(provider: str) -> str | None:

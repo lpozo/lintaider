@@ -1,20 +1,20 @@
-"""Semgrep linter implementation for semantic analysis."""
+"""Pylint linter implementation."""
 
 import json
 from pathlib import Path
 
-from codereview.linters.base import AsyncCompletedProcess, BaseLinter
-from codereview.linters.context import get_linter_context
-from codereview.linters.result import LinterResult
+from lintaider.linters.base import AsyncCompletedProcess, BaseLinter
+from lintaider.linters.context import get_linter_context
+from lintaider.linters.result import LinterResult
 
 
-class SemgrepLinter(BaseLinter):
-    """Linter implementation for Semgrep."""
+class PylintLinter(BaseLinter):
+    """Linter implementation for Pylint."""
 
-    name = "Semgrep"
+    name = "Pylint"
 
     def build_command(self, target: Path) -> list[str]:
-        """Build the Semgrep command for the target path.
+        """Build the Pylint command for the target path.
 
         Args:
             target: The file or directory to scan.
@@ -25,11 +25,8 @@ class SemgrepLinter(BaseLinter):
         return [
             "uv",
             "run",
-            "semgrep",
-            "scan",
-            "--config",
-            "auto",
-            "--json",
+            "pylint",
+            "--output-format=json",
             str(target.absolute()),
         ]
 
@@ -38,7 +35,7 @@ class SemgrepLinter(BaseLinter):
         process_result: AsyncCompletedProcess,
         target: Path,
     ) -> list[LinterResult]:
-        """Parse Semgrep JSON output.
+        """Parse Pylint JSON output.
 
         Args:
             process_result: The completed process result.
@@ -49,24 +46,21 @@ class SemgrepLinter(BaseLinter):
         """
 
         try:
-            data = json.loads(process_result.stdout)
-            findings = data.get("results", [])
+            errors = json.loads(process_result.stdout)
         except json.JSONDecodeError:
             return []
 
         parsed_results = []
-        for finding in findings:
-            file_path = Path(finding.get("path", str(target)))
+        for error in errors:
+            file_path = Path(error.get("path", target.name))
 
-            line_start = finding.get("start", {}).get("line", 1)
-            col_start = finding.get("start", {}).get("col", 1)
-            line_end = finding.get("end", {}).get("line")
-            col_end = finding.get("end", {}).get("col")
+            line_start = error.get("line", 1)
+            col_start = error.get("column", 1)
+            line_end = error.get("endLine")
+            col_end = error.get("endColumn")
 
-            extra = finding.get("extra", {})
-            error_code = finding.get("check_id", "Unknown")
-            severity = extra.get("severity", "WARNING").upper()
-            message = f"[{severity}] {extra.get('message', 'No message')}"
+            error_code = error.get("message-id", error.get("symbol", "Unknown"))
+            message = error.get("message", "Unknown error")
 
             raw_snippet, snippet_start, semantic_info = get_linter_context(
                 file_path=file_path,

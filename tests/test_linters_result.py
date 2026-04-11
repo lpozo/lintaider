@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from codereview.linters.result import LinterResult
+from lintaider.linters.result import LinterResult
 
 
 def test_linter_result_creation() -> None:

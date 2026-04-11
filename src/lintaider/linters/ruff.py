@@ -1,20 +1,20 @@
-"""Bandit linter implementation."""
+"""Linter implementation for Ruff."""
 
 import json
 from pathlib import Path
 
-from codereview.linters.base import AsyncCompletedProcess, BaseLinter
-from codereview.linters.context import get_linter_context
-from codereview.linters.result import LinterResult
+from lintaider.linters.base import AsyncCompletedProcess, BaseLinter
+from lintaider.linters.context import get_linter_context
+from lintaider.linters.result import LinterResult
 
 
-class BanditLinter(BaseLinter):
-    """Linter implementation for Bandit (Security scanner)."""
+class RuffLinter(BaseLinter):
+    """Linter implementation for Ruff."""
 
-    name = "Bandit"
+    name = "Ruff"
 
     def build_command(self, target: Path) -> list[str]:
-        """Build the Bandit command for the target path.
+        """Build the Ruff command for the target path.
 
         Args:
             target: The file or directory to scan.
@@ -22,16 +22,21 @@ class BanditLinter(BaseLinter):
         Returns:
             A list of command arguments.
         """
-        target_str = str(target.absolute())
-        args = ["-r", target_str] if target.is_dir() else [target_str]
-        return ["uv", "run", "bandit", "-f", "json"] + args
+        return [
+            "uv",
+            "run",
+            "ruff",
+            "check",
+            "--output-format=json",
+            str(target.absolute()),
+        ]
 
     def parse_output(
         self,
         process_result: AsyncCompletedProcess,
         target: Path,
     ) -> list[LinterResult]:
-        """Parse Bandit JSON output.
+        """Parse Ruff JSON output.
 
         Args:
             process_result: The completed process result.
@@ -40,25 +45,24 @@ class BanditLinter(BaseLinter):
         Returns:
             A list of standardized linter results.
         """
+        # pylint: disable=too-many-locals
 
         try:
-            output = json.loads(process_result.stdout)
-            errors = output.get("results", [])
+            errors = json.loads(process_result.stdout)
         except json.JSONDecodeError:
             return []
 
         parsed_results = []
         for error in errors:
-            file_path = Path(error.get("filename", target.name))
+            file_path = Path(error.get("filename", ""))
 
-            line_start = error.get("line_number", 1)
-            line_range = error.get("line_range", [])
-            line_end = max(line_range) if line_range else line_start
+            line_start = error.get("location", {}).get("row", 1)
+            col_start = error.get("location", {}).get("column", 1)
+            line_end = error.get("end_location", {}).get("row")
+            col_end = error.get("end_location", {}).get("column")
 
-            error_code = error.get("test_id", "Unknown")
-            issue_text = error.get("issue_text", "Unknown security issue")
-            severity = error.get("issue_severity", "LOW")
-            message = f"[{severity}] {issue_text}"
+            error_code = error.get("code", "Unknown")
+            message = error.get("message", "Unknown error")
 
             raw_snippet, snippet_start, semantic_info = get_linter_context(
                 file_path=file_path,
@@ -72,8 +76,8 @@ class BanditLinter(BaseLinter):
                     file_path=file_path,
                     line_start=line_start,
                     line_end=line_end,
-                    col_start=None,
-                    col_end=None,
+                    col_start=col_start,
+                    col_end=col_end,
                     linter_name=self.name,
                     error_code=error_code,
                     message=message,

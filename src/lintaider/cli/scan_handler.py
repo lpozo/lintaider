@@ -15,10 +15,10 @@ from rich.progress import (
 )
 from rich.table import Table
 
-from codereview.cli.ui import console
-from codereview.config import Config
-from codereview.linters import LINTER_MAP, BaseLinter, Engine
-from codereview.linters.result import LinterResult
+from lintaider.cli.ui import console
+from lintaider.config import Config
+from lintaider.linters import LINTER_MAP, BaseLinter, Engine
+from lintaider.linters.result import LinterResult
 
 
 async def handle_scan(
@@ -84,7 +84,7 @@ async def handle_scan(
     )
     console.print(f"\n[bold green]Results saved to {output}[/bold green]")
     console.print(
-        "[dim]Run 'codereview fix' to get AI suggestions and apply patches.[/dim]"
+        "[dim]Run 'lintaider fix' to get AI suggestions and apply patches.[/dim]"
     )
 
 
