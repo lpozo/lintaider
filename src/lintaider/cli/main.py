@@ -8,7 +8,7 @@ import click
 from lintaider.cli.fix_handler import handle_fix
 from lintaider.cli.init_handler import handle_init
 from lintaider.cli.scan_handler import handle_scan
-from lintaider.cli.ui import SCAN_RESULT_FILE
+from lintaider.cli.ui import HUMAN_READABLE_REPORT_FILE, SCAN_RESULT_FILE
 
 
 @click.group()
@@ -40,19 +40,38 @@ def init() -> None:  # vulture: ignore
     default=False,
     help="Print a detailed report of every issue found.",
 )
+@click.option(
+    "-r",
+    "--human-readable",
+    is_flag=True,
+    default=False,
+    help=(
+        "Generate a markdown report for humans "
+        f"(default: {HUMAN_READABLE_REPORT_FILE})."
+    ),
+)
+# pylint: disable=too-many-arguments,too-many-positional-arguments
 def scan(  # vulture: ignore
     target: Path,
     only: str | None,
     skip: str | None,
     output: Path | None,
     verbose: bool,
+    human_readable: bool,
 ) -> None:
     """Scan a target file or directory and save results.
 
     TARGET: The file or directory you want to analyze.
     """
     asyncio.run(
-        handle_scan(target, only, skip, output or SCAN_RESULT_FILE, verbose),
+        handle_scan(
+            target,
+            only,
+            skip,
+            output or SCAN_RESULT_FILE,
+            verbose,
+            human_readable,
+        ),
     )
 
 
