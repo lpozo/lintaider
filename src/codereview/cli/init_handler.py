@@ -159,13 +159,13 @@ def _select_api_base(provider: str, current_api_base: str | None) -> str | None:
     return api_base_input or None
 
 
-def _select_model(
+def _build_model_candidates(
     provider: str,
     current_model: str,
     api_base: str | None,
     api_key: str | None,
-) -> str:
-    """Select a model from discovered and recommended options or custom input."""
+) -> tuple[list[str], str]:
+    """Build model candidates from discovery, recommendations, or current."""
     provider_spec = get_provider_spec(provider)
     default_model = current_model or (
         provider_spec.default_model if provider_spec else ""
@@ -176,17 +176,31 @@ def _select_model(
         provider, api_base=api_base, api_key=api_key
     )
 
-    model_candidates: list[str] = []
+    candidates: list[str] = []
     if discovered_models:
-        model_candidates.extend(discovered_models)
+        candidates.extend(discovered_models)
     elif provider_spec and provider_spec.recommended_models:
-        model_candidates.extend(provider_spec.recommended_models)
+        candidates.extend(provider_spec.recommended_models)
         console.print(
             "[yellow]Could not fetch models. Showing recommended options.[/yellow]"
         )
 
-    if default_model and default_model not in model_candidates:
-        model_candidates.insert(0, default_model)
+    if default_model and default_model not in candidates:
+        candidates.insert(0, default_model)
+
+    return candidates, default_model
+
+
+def _select_model(
+    provider: str,
+    current_model: str,
+    api_base: str | None,
+    api_key: str | None,
+) -> str:
+    """Select a model from discovered and recommended options or custom input."""
+    model_candidates, default_model = _build_model_candidates(
+        provider, current_model, api_base, api_key
+    )
 
     if not model_candidates:
         return click.prompt("Model name", default=default_model or "llama3").strip()
@@ -217,6 +231,18 @@ def _select_model(
     return default_model or "llama3"
 
 
+def _validate_and_filter_linters(linter_list: list[str], list_name: str) -> list[str]:
+    """Validate linter names against known linters, warn on invalid names."""
+    invalid = [name for name in linter_list if name not in LINTER_MAP]
+    if invalid:
+        console.print(
+            f"[yellow]Ignoring unknown {list_name} linters:[/yellow] "
+            + ", ".join(sorted(invalid))
+        )
+        return [name for name in linter_list if name in LINTER_MAP]
+    return linter_list
+
+
 def _select_linter_preferences(config: Config) -> tuple[list[str], list[str]]:
     """Collect and validate default linter preferences."""
     available_linters = sorted(LINTER_MAP.keys())
@@ -236,22 +262,8 @@ def _select_linter_preferences(config: Config) -> tuple[list[str], list[str]]:
     skip_linters = _parse_linter_list(skipped_str)
     only_linters = _parse_linter_list(only_str)
 
-    invalid_skip = [name for name in skip_linters if name not in LINTER_MAP]
-    invalid_only = [name for name in only_linters if name not in LINTER_MAP]
-
-    if invalid_skip:
-        console.print(
-            "[yellow]Ignoring unknown skip linters:[/yellow] "
-            + ", ".join(sorted(invalid_skip))
-        )
-        skip_linters = [name for name in skip_linters if name in LINTER_MAP]
-
-    if invalid_only:
-        console.print(
-            "[yellow]Ignoring unknown only linters:[/yellow] "
-            + ", ".join(sorted(invalid_only))
-        )
-        only_linters = [name for name in only_linters if name in LINTER_MAP]
+    skip_linters = _validate_and_filter_linters(skip_linters, "skip")
+    only_linters = _validate_and_filter_linters(only_linters, "only")
 
     overlap = sorted(set(skip_linters).intersection(only_linters))
     if overlap:
@@ -299,7 +311,7 @@ def _run_connectivity_check(
     return ok
 
 
-def _print_summary(
+def _print_summary(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     provider: str,
     model: str,
     api_base: str | None,
@@ -309,13 +321,15 @@ def _print_summary(
 ) -> None:
     """Display a final onboarding summary before saving."""
     status = "Passed" if verification_ok else "Skipped/Failed"
+    skip_str = ", ".join(skip_linters) if skip_linters else "None"
+    only_str = ", ".join(only_linters) if only_linters else "All"
     console.print(
         Panel(
             f"Provider: [bold]{provider}[/bold]\n"
             f"Model: [bold]{model}[/bold]\n"
             f"API Base: [bold]{api_base or 'Default'}[/bold]\n"
-            f"Skip Linters: [bold]{', '.join(skip_linters) if skip_linters else 'None'}[/bold]\n"
-            f"Only Linters: [bold]{', '.join(only_linters) if only_linters else 'All'}[/bold]\n"
+            f"Skip Linters: [bold]{skip_str}[/bold]\n"
+            f"Only Linters: [bold]{only_str}[/bold]\n"
             f"Verification: [bold]{status}[/bold]",
             title="Setup Summary",
             border_style="cyan",

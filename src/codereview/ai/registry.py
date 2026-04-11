@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
-class ProviderSpec:
+class ProviderSpec:  # pylint: disable=too-many-instance-attributes
     """Declarative metadata for an AI provider."""
 
     provider_id: str
@@ -69,4 +69,4 @@ def get_provider_spec(provider: str) -> ProviderSpec | None:
 
 def get_supported_providers() -> tuple[str, ...]:
     """Return provider identifiers in registry order."""
-    return tuple(PROVIDER_SPECS.keys())
+    return tuple(PROVIDER_SPECS.keys())  # noqa: VULTURE

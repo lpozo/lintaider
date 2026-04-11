@@ -1,5 +1,6 @@
 """Authentication and environment management for AI providers."""
 
+import logging
 import os
 import re
 from pathlib import Path
@@ -9,9 +10,9 @@ from dotenv import load_dotenv
 from codereview.ai.registry import get_provider_spec
 
 try:
-    import keyring
+    import keyring as keyring_module
 except ImportError:  # pragma: no cover - depends on optional install
-    keyring = None
+    keyring_module = None  # type: ignore[assignment]
 
 # Mapping of providers to their expected environment variable names
 PROVIDER_ENV_MAP: dict[str, str] = {
@@ -53,11 +54,11 @@ def get_api_key_for_provider(provider: str) -> str | None:
     if env_value:
         return env_value
 
-    if keyring is None:
+    if keyring_module is None:
         return None
 
     try:
-        return keyring.get_password(KEYRING_SERVICE_NAME, env_var)
+        return keyring_module.get_password(KEYRING_SERVICE_NAME, env_var)
     except Exception:  # pylint: disable=broad-exception-caught
         return None
 
@@ -95,12 +96,13 @@ def save_provider_api_key(provider: str, api_key: str) -> str:
     if not env_var:
         return "none"
 
-    if keyring is not None:
+    if keyring_module is not None:
         try:
-            keyring.set_password(KEYRING_SERVICE_NAME, env_var, api_key)
+            keyring_module.set_password(KEYRING_SERVICE_NAME, env_var, api_key)
             return "keychain"
-        except Exception:  # pylint: disable=broad-exception-caught
-            pass
+        except Exception as exc:  # pylint: disable=broad-exception-caught
+            # Log but don't fail - will fallback to .env
+            logging.debug("Failed to save to keyring: %s", exc)
 
     save_api_key(env_var, api_key)
     return ".env"

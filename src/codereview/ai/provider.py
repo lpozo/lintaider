@@ -1,6 +1,7 @@
 """LiteLLM AI provider implementation for universal model access."""
 
 import json
+from typing import TYPE_CHECKING
 
 import requests
 from dotenv import load_dotenv
@@ -10,6 +11,9 @@ from codereview.ai.auth import get_api_key_for_provider
 from codereview.ai.base import AIFixProposal, BaseAIProvider
 from codereview.ai.registry import get_provider_spec
 from codereview.linters.result import LinterResult
+
+if TYPE_CHECKING:
+    from codereview.ai.registry import ProviderSpec
 
 # Load .env file if it exists
 load_dotenv()
@@ -123,6 +127,68 @@ def create_ai_provider(
     return LiteLLMProvider(model=model, api_base=resolved_api_base, api_key=api_key)
 
 
+def _resolve_base_url(
+    provider_name: str, api_base: str | None, provider_spec: "ProviderSpec | None"
+) -> str | None:
+    """Resolve the API base URL for a provider."""
+    base_url = api_base or (provider_spec.default_api_base if provider_spec else None)
+    if base_url:
+        return base_url
+
+    # Fallback URLs for known providers
+    fallbacks = {
+        "openai": "https://api.openai.com/v1",
+        "anthropic": "https://api.anthropic.com/v1",
+        "gemini": "https://generativelanguage.googleapis.com/v1beta",
+    }
+    return fallbacks.get(provider_name)
+
+
+def _prepare_request_headers_and_params(
+    provider_name: str, api_key: str | None
+) -> tuple[dict[str, str], dict[str, str]]:
+    """Prepare HTTP headers and params for model discovery request."""
+    headers: dict[str, str] = {}
+    params: dict[str, str] = {}
+
+    token = api_key or get_api_key_for_provider(provider_name)
+    if provider_name in ("openai", "anthropic") and token:
+        headers["Authorization"] = f"Bearer {token}"
+    if provider_name == "anthropic":
+        headers["anthropic-version"] = "2023-06-01"
+    if provider_name == "gemini" and token:
+        params["key"] = token
+
+    return headers, params
+
+
+def _parse_openai_style_models(provider_name: str, raw_models: list) -> list[str]:
+    """Parse OpenAI-style model list response (used by OpenAI, Anthropic, Gemini)."""
+    names: list[str] = []
+    for item in raw_models:
+        if not isinstance(item, dict):
+            continue
+        name = item.get("id") or item.get("name")
+        if not (isinstance(name, str) and name):
+            continue
+        if provider_name == "gemini" and name.startswith("models/"):
+            name = name.replace("models/", "", 1)
+        names.append(name)
+    return sorted(set(names))
+
+
+def _parse_model_response(provider_name: str, payload: dict) -> list[str]:
+    """Parse model names from API response."""
+    if provider_name == "ollama":
+        models = payload.get("models", [])
+        return sorted(
+            str(item.get("name", "")).strip() for item in models if item.get("name")
+        )
+
+    raw_models = payload.get("data") or payload.get("models") or []
+    return _parse_openai_style_models(provider_name, raw_models)
+
+
 def list_provider_models(
     provider_name: str,
     api_base: str | None = None,
@@ -138,27 +204,11 @@ def list_provider_models(
     if not provider_spec or not provider_spec.model_list_endpoint:
         return []
 
-    base_url = api_base or provider_spec.default_api_base
+    base_url = _resolve_base_url(provider_name, api_base, provider_spec)
     if not base_url:
-        if provider_name == "openai":
-            base_url = "https://api.openai.com/v1"
-        elif provider_name == "anthropic":
-            base_url = "https://api.anthropic.com/v1"
-        elif provider_name == "gemini":
-            base_url = "https://generativelanguage.googleapis.com/v1beta"
-        else:
-            return []
+        return []
 
-    headers: dict[str, str] = {}
-    params: dict[str, str] = {}
-    token = api_key or get_api_key_for_provider(provider_name)
-
-    if provider_name in ("openai", "anthropic") and token:
-        headers["Authorization"] = f"Bearer {token}"
-    if provider_name == "anthropic":
-        headers["anthropic-version"] = "2023-06-01"
-    if provider_name == "gemini" and token:
-        params["key"] = token
+    headers, params = _prepare_request_headers_and_params(provider_name, api_key)
 
     url = f"{base_url.rstrip('/')}{provider_spec.model_list_endpoint}"
     if provider_name == "ollama" and url.endswith("/v1/api/tags"):
@@ -176,23 +226,7 @@ def list_provider_models(
     except requests.RequestException:
         return []
 
-    if provider_name == "ollama":
-        models = payload.get("models", [])
-        return sorted(
-            str(item.get("name", "")).strip() for item in models if item.get("name")
-        )
-
-    raw_models = payload.get("data") or payload.get("models") or []
-    names: list[str] = []
-    for item in raw_models:
-        if not isinstance(item, dict):
-            continue
-        name = item.get("id") or item.get("name")
-        if isinstance(name, str) and name:
-            if provider_name == "gemini" and name.startswith("models/"):
-                name = name.replace("models/", "", 1)
-            names.append(name)
-    return sorted(set(names))
+    return _parse_model_response(provider_name, payload)
 
 
 async def verify_provider_connection(

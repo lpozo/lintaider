@@ -63,4 +63,4 @@ disable = [
 
 [tool.vulture]
 ignore_decorators = ["@main.command", "@click.command", "@click.group"]
-ignore_names = ["*Linter"]
+ignore_names = ["*Linter", "get_supported_providers"]

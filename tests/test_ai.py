@@ -221,7 +221,7 @@ def test_create_ai_provider_with_keychain() -> None:
     mock_keyring = MagicMock()
     mock_keyring.get_password.return_value = "keyring_key"
 
-    with patch("codereview.ai.auth.keyring", mock_keyring):
+    with patch("codereview.ai.auth.keyring_module", mock_keyring):
         provider = create_ai_provider("openai", "gpt-4o")
 
     assert provider.api_key in ("keyring_key", None)  # May or may not fetch

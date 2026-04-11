@@ -80,7 +80,7 @@ def test_get_api_key_for_provider_no_env_no_keyring() -> None:
     """Test retrieval returns None when no env var and keyring unavailable."""
     with (
         patch("codereview.ai.auth.load_dotenv"),
-        patch("codereview.ai.auth.keyring", None),
+        patch("codereview.ai.auth.keyring_module", None),
         patch.dict(os.environ, {}, clear=True),
     ):
         key = get_api_key_for_provider("openai")
@@ -95,7 +95,7 @@ def test_get_api_key_for_provider_from_keyring() -> None:
 
     with (
         patch("codereview.ai.auth.load_dotenv"),
-        patch("codereview.ai.auth.keyring", mock_keyring),
+        patch("codereview.ai.auth.keyring_module", mock_keyring),
         patch.dict(os.environ, {}, clear=True),
     ):
         key = get_api_key_for_provider("openai")
@@ -114,7 +114,7 @@ def test_get_api_key_for_provider_env_precedence(monkeypatch) -> None:
 
     with (
         patch("codereview.ai.auth.load_dotenv"),
-        patch("codereview.ai.auth.keyring", mock_keyring),
+        patch("codereview.ai.auth.keyring_module", mock_keyring),
     ):
         key = get_api_key_for_provider("openai")
 
@@ -129,7 +129,7 @@ def test_get_api_key_for_provider_keyring_exception() -> None:
 
     with (
         patch("codereview.ai.auth.load_dotenv"),
-        patch("codereview.ai.auth.keyring", mock_keyring),
+        patch("codereview.ai.auth.keyring_module", mock_keyring),
         patch.dict(os.environ, {}, clear=True),
     ):
         key = get_api_key_for_provider("openai")
@@ -141,7 +141,7 @@ def test_save_provider_api_key_to_keyring() -> None:
     """Test saving provider API key to keyring."""
     mock_keyring = MagicMock()
 
-    with patch("codereview.ai.auth.keyring", mock_keyring):
+    with patch("codereview.ai.auth.keyring_module", mock_keyring):
         backend = save_provider_api_key("openai", "secret123")
 
     assert backend == "keychain"
@@ -157,7 +157,7 @@ def test_save_provider_api_key_fallback_to_env(tmp_path) -> None:
     mock_keyring.set_password.side_effect = Exception("Keyring not available")
 
     with (
-        patch("codereview.ai.auth.keyring", mock_keyring),
+        patch("codereview.ai.auth.keyring_module", mock_keyring),
         patch("codereview.ai.auth.Path", return_value=env_file),
     ):
         backend = save_provider_api_key("openai", "secret123")
