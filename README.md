@@ -21,7 +21,7 @@ and lets you apply AI-generated fixes interactively.
 
 ```bash
 git clone <repository-url>
-cd codereview
+cd lintaider
 uv sync
 ```
 
