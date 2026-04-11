@@ -105,14 +105,6 @@ You can also set default `only_linters` and `skip_linters` values in
 - [Radon](https://github.com/rubik/radon)
 - [Safety](https://github.com/pyupio/safety)
 
-## Configuration
-
-Run the setup wizard:
-
-```bash
-uv run lintaider init
-```
-
 ## Development
 
 Run tests:
