@@ -107,20 +107,11 @@ You can also set default `only_linters` and `skip_linters` values in
 
 ## Configuration
 
-LintAIder stores settings in `lintaider.toml`:
+Run the setup wizard:
 
-```toml
-[ai]
-provider = "ollama"
-model = "llama3"
-# api_base = "http://localhost:11434"
-
-[linters]
-only_linters = []
-skip_linters = []
+```bash
+uv run lintaider init
 ```
-
-Environment variables override stored credentials when present.
 
 ## Development
 
