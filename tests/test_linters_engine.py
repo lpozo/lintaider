@@ -35,5 +35,7 @@ async def test_engine_run_all() -> None:
     results = await engine.run_all(Path())
 
     assert len(results) == 3
+    # Sort results to ensure deterministic assertions
+    results.sort(key=lambda r: (r.linter_name, str(r.file_path)))
     assert results[0].linter_name == "L1"
     assert results[2].linter_name == "L2"

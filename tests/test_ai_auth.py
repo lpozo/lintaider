@@ -1,10 +1,7 @@
 """Tests for AI authentication and secret management."""
 
 import os
-from pathlib import Path
 from unittest.mock import MagicMock, patch
-
-import pytest
 
 from lintaider.ai.auth import (
     KEYRING_SERVICE_NAME,

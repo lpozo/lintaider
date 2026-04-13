@@ -15,18 +15,19 @@ from rich.progress import (
 )
 from rich.table import Table
 
-from lintaider.cli.ui import console
+from lintaider.cli.ui import HUMAN_READABLE_REPORT_FILE, console
 from lintaider.config import Config
 from lintaider.linters import LINTER_MAP, BaseLinter, Engine
 from lintaider.linters.result import LinterResult
 
 
-async def handle_scan(
+async def handle_scan(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     target: Path,
     only: str | None,
     skip: str | None,
     output: Path,
     verbose: bool = False,
+    human_readable: bool = False,
 ) -> None:
     """Run all active linters on a target path and write results to JSON.
 
@@ -42,6 +43,8 @@ async def handle_scan(
             Overrides the ``skip_linters`` value from config.
         output: Path to the JSON file where results will be saved.
         verbose: When ``True``, prints a detailed panel for every issue found.
+        human_readable: When ``True``, also writes a markdown report to
+            ``linting-report.md``.
     """
     console.print(f"[bold blue]Scanning {target}...[/bold blue]")
 
@@ -69,23 +72,90 @@ async def handle_scan(
 
         results = await engine.run_all(target, progress_callback=progress_cb)
 
-    if not results:
-        console.print("[bold green]No issues found! 🎉[/bold green]")
-        return
-
     # Logical Sort: by file then line
     results.sort(key=lambda r: (str(r.file_path), r.line_start))
 
-    _print_scan_summary(results, verbose)
+    if not results:
+        console.print("[bold green]No issues found! 🎉[/bold green]")
 
-    # Serialize to JSON
+    if results:
+        _print_scan_summary(results, verbose)
+
+    # Always serialize to JSON to keep output behavior deterministic.
     output.write_text(
         json.dumps([r.to_dict() for r in results], indent=2), encoding="utf-8"
     )
     console.print(f"\n[bold green]Results saved to {output}[/bold green]")
+
+    if human_readable:
+        report_markdown = _build_markdown_report(target, results)
+        HUMAN_READABLE_REPORT_FILE.write_text(report_markdown, encoding="utf-8")
+        console.print(
+            "[bold green]Human-readable report saved to "
+            f"{HUMAN_READABLE_REPORT_FILE}[/bold green]"
+        )
+
     console.print(
         "[dim]Run 'lintaider fix' to get AI suggestions and apply patches.[/dim]"
     )
+
+
+def _build_markdown_report(target: Path, results: list[LinterResult]) -> str:
+    """Build a markdown linting report from linter results.
+
+    Args:
+        target: The file or directory that was scanned.
+        results: Sorted list of linter results.
+
+    Returns:
+        A markdown string suitable for human-readable sharing.
+    """
+    counts: Counter[str] = Counter(r.linter_name for r in results)
+    lines: list[str] = [
+        "# Linting Report",
+        "",
+        f"- Target: `{target}`",
+        f"- Total issues: **{len(results)}**",
+        "",
+        "## Summary",
+        "",
+        "| Linter | Issues |",
+        "| --- | ---: |",
+    ]
+
+    if counts:
+        for linter, count in sorted(counts.items()):
+            lines.append(f"| {linter} | {count} |")
+    else:
+        lines.append("| None | 0 |")
+
+    lines.extend(["", "## Findings", ""])
+
+    if not results:
+        lines.append("No issues found.")
+        lines.append("")
+        return "\n".join(lines)
+
+    for idx, result in enumerate(results, start=1):
+        location = f"{result.file_path}:{result.line_start}"
+        if result.col_start is not None:
+            location += f":{result.col_start}"
+
+        lines.extend(
+            [
+                f"### {idx}. {result.linter_name} [{result.error_code}]",
+                "",
+                f"- Location: `{location}`",
+                f"- Message: {result.message}",
+            ]
+        )
+
+        if result.snippet_context:
+            lines.extend(["", "```python", result.snippet_context, "```"])
+
+        lines.append("")
+
+    return "\n".join(lines)
 
 
 def _parse_linter_names(names: str | None, default: list[str]) -> list[str]:

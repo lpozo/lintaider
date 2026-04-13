@@ -14,9 +14,7 @@ from lintaider.linters.result import LinterResult
 @pytest.fixture
 def mock_config(mocker):
     """Fixture to mock Config.load with defaults."""
-    return mocker.patch(
-        "lintaider.cli.init_handler.Config.load", return_value=Config()
-    )
+    return mocker.patch("lintaider.cli.init_handler.Config.load", return_value=Config())
 
 
 def test_cli_scan_no_issues(mocker, tmp_path, mock_config) -> None:
@@ -75,6 +73,82 @@ def test_cli_scan_with_issues(mocker, tmp_path, mock_config) -> None:
     assert data[0]["error_code"] == "E1"
 
 
+def test_cli_scan_human_readable_generates_markdown(
+    mocker, tmp_path, mock_config
+) -> None:
+    """Test that --human-readable generates linting-report.md and JSON output."""
+    import json
+    from pathlib import Path
+
+    runner = CliRunner()
+    test_file = tmp_path / "error.py"
+    test_file.write_text("import bad\n", encoding="utf-8")
+
+    fake_result = LinterResult(
+        file_path=test_file,
+        line_start=1,
+        line_end=1,
+        col_start=1,
+        col_end=10,
+        linter_name="TestLinter",
+        error_code="E1",
+        message="A test error",
+        snippet_context="import bad",
+    )
+
+    mocker.patch(
+        "lintaider.cli.scan_handler.Engine.run_all",
+        new_callable=AsyncMock,
+        return_value=[fake_result],
+    )
+
+    output_file = tmp_path / "scan-result.json"
+    with runner.isolated_filesystem(temp_dir=tmp_path):
+        result = runner.invoke(
+            main,
+            ["scan", str(test_file), "--output", str(output_file), "--human-readable"],
+        )
+
+        assert result.exit_code == 0
+        assert output_file.exists()
+
+        data = json.loads(output_file.read_text(encoding="utf-8"))
+        assert len(data) == 1
+        assert data[0]["linter_name"] == "TestLinter"
+
+        report_file = Path("linting-report.md")
+        assert report_file.exists()
+        content = report_file.read_text(encoding="utf-8")
+        assert "# Linting Report" in content
+        assert "TestLinter" in content
+        assert "A test error" in content
+
+
+def test_cli_scan_human_readable_short_flag(mocker, tmp_path, mock_config) -> None:
+    """Test that -r also generates linting-report.md."""
+    from pathlib import Path
+
+    runner = CliRunner()
+    test_file = tmp_path / "valid.py"
+    test_file.write_text("def ok():\n    return 1\n", encoding="utf-8")
+
+    mocker.patch(
+        "lintaider.cli.scan_handler.Engine.run_all",
+        new_callable=AsyncMock,
+        return_value=[],
+    )
+
+    output_file = tmp_path / "scan-result.json"
+    with runner.isolated_filesystem(temp_dir=tmp_path):
+        result = runner.invoke(
+            main, ["scan", str(test_file), "--output", str(output_file), "-r"]
+        )
+
+        assert result.exit_code == 0
+        assert output_file.exists()
+        assert Path("linting-report.md").exists()
+
+
 def test_cli_fix_with_issue_skip(mocker, tmp_path, mock_config) -> None:
     """Test fix command loads scan results, presents AI proposal, and skips."""
     import json
@@ -112,7 +186,6 @@ def test_cli_fix_with_issue_skip(mocker, tmp_path, mock_config) -> None:
 
 def test_cli_scan_verbose(mocker, tmp_path, mock_config) -> None:
     """Test that --verbose prints per-issue panels."""
-    import json
 
     runner = CliRunner()
     test_file = tmp_path / "error.py"
@@ -182,7 +255,7 @@ def test_cli_scan_skip_filter(mocker, tmp_path, mock_config) -> None:
     linters = kwargs.get("linters", []) or (args[0] if args else [])
     # Vulture, Radon, and Safety should remain
     assert len(linters) == 3
-    remaining_names = [l.__class__.__name__ for l in linters]
+    remaining_names = [linter.__class__.__name__ for linter in linters]
     assert "VultureLinter" in remaining_names
     assert "RadonLinter" in remaining_names
     assert "SafetyLinter" in remaining_names

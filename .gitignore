@@ -12,3 +12,4 @@ wheels/
 # Config files
 lintaider.toml
 scan-result.json
+linting-report.md

@@ -4,8 +4,9 @@ import json
 from pathlib import Path
 
 import pytest
-from lintaider.linters.semgrep import SemgrepLinter
+
 from lintaider.linters.base import AsyncCompletedProcess
+from lintaider.linters.semgrep import SemgrepLinter
 
 
 @pytest.fixture(autouse=True)
@@ -28,33 +29,33 @@ def linter() -> SemgrepLinter:
     [
         # Standard success
         (
-            json.dumps({
-                "results": [
-                    {
-                        "check_id": "rules.unsafe",
-                        "path": "test.py",
-                        "start": {"line": 1, "col": 1},
-                        "extra": {"message": "Unsafe", "severity": "WARNING"}
-                    }
-                ]
-            }),
-            1, "rules.unsafe"
+            json.dumps(
+                {
+                    "results": [
+                        {
+                            "check_id": "rules.unsafe",
+                            "path": "test.py",
+                            "start": {"line": 1, "col": 1},
+                            "extra": {"message": "Unsafe", "severity": "WARNING"},
+                        }
+                    ]
+                }
+            ),
+            1,
+            "rules.unsafe",
         ),
         # Empty results
         (json.dumps({"results": []}), 0, None),
         # Malformed JSON
         ("Failed", 0, None),
         # Missing fields
-        (
-            json.dumps({
-                "results": [{"check_id": "minimal"}]
-            }),
-            1, "minimal"
-        ),
-    ]
+        (json.dumps({"results": [{"check_id": "minimal"}]}), 1, "minimal"),
+    ],
 )
 @pytest.mark.asyncio
-async def test_semgrep_scenarios(mocker, linter, stdout, expected_count, first_error_code) -> None:
+async def test_semgrep_scenarios(
+    mocker, linter, stdout, expected_count, first_error_code
+) -> None:
     """Test various Semgrep parsing scenarios."""
     mock_result = AsyncCompletedProcess(stdout=stdout, stderr="", returncode=0)
     mocker.patch.object(SemgrepLinter, "_run_command", return_value=mock_result)
