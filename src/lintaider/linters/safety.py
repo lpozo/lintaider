@@ -26,7 +26,7 @@ class SafetyLinter(BaseLinter):
         Returns:
             A list of command arguments.
         """
-        return ["uv", "run", "safety", "check", "--output", "json"]
+        return ["safety", "check", "--output", "json"]
 
     def parse_output(
         self,

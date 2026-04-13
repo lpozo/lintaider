@@ -4,6 +4,7 @@ import asyncio
 import difflib
 import json
 from pathlib import Path
+from typing import Any
 
 import click
 from rich.panel import Panel
@@ -13,7 +14,11 @@ from lintaider.ai import AIFixProposal, create_ai_provider
 from lintaider.cli.scan_handler import handle_scan
 from lintaider.cli.ui import console
 from lintaider.config import Config
-from lintaider.linters.context import ProjectSummary, format_snippet, get_project_summary
+from lintaider.linters.context import (
+    ProjectSummary,
+    format_snippet,
+    get_project_summary,
+)
 from lintaider.linters.result import LinterResult
 
 
@@ -32,30 +37,8 @@ async def handle_fix(
         target: Optional file or directory to auto-scan when ``input_file``
             is missing.
     """
-    if not input_file.exists():
-        if target:
-            console.print(
-                f"[yellow]{input_file} not found. "
-                f"Starting automatic scan of {target}...[/yellow]"
-            )
-            await handle_scan(target, only=None, skip=None, output=input_file)
-        else:
-            console.print(
-                f"[bold red]Error:[/bold red] {input_file} not found.\n"
-                "Please provide a target to scan: [bold]lintaider fix <target>[/bold]"
-            )
-            return
-
-    try:
-        data = json.loads(input_file.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
-        console.print(f"[bold red]Error reading {input_file}:[/bold red] {exc}")
-        return
-
-    results = [LinterResult.from_dict(item) for item in data]
-
+    results = await _load_scan_results(input_file, target)
     if not results:
-        console.print("[bold green]No issues to fix.[/bold green]")
         return
 
     config = Config.load()
@@ -77,14 +60,51 @@ async def handle_fix(
 
     # Determine target path for context summary
     target_path = target or Path.cwd()
-    if not results and target:
-        # handle_scan already handled it if results are empty after scan
-        pass
-
     with console.status("[dim]Analyzing project context...[/dim]", spinner="dots"):
         project_summary = get_project_summary(target_path)
 
-    # Background AI Task Orchestration with Rate Limiting
+    # Launch AI tasks background orchestration
+    ai_tasks = _orchestrate_ai_tasks(ai, results, project_summary)
+
+    for idx, result in enumerate(results):
+        await _process_fix_interactive(idx, len(results), result, ai_tasks[idx])
+
+
+async def _load_scan_results(
+    input_file: Path, target: Path | None
+) -> list[LinterResult]:
+    """Check for input file, run scan if needed, and load results."""
+    if not input_file.exists():
+        if target:
+            console.print(
+                f"[yellow]{input_file} not found. "
+                f"Starting automatic scan of {target}...[/yellow]"
+            )
+            await handle_scan(target, only=None, skip=None, output=input_file)
+        else:
+            console.print(
+                f"[bold red]Error:[/bold red] {input_file} not found.\n"
+                "Please provide a target to scan: [bold]lintaider fix <target>[/bold]"
+            )
+            return []
+
+    try:
+        data = json.loads(input_file.read_text(encoding="utf-8"))
+        results = [LinterResult.from_dict(item) for item in data]
+        if not results:
+            console.print("[bold green]No issues to fix.[/bold green]")
+            return []
+        return results
+    except (OSError, json.JSONDecodeError) as exc:
+        console.print(f"[bold red]Error reading {input_file}:[/bold red] {exc}")
+        return []
+
+
+def _orchestrate_ai_tasks(
+    ai: Any, results: list[LinterResult], project_summary: ProjectSummary
+) -> list[asyncio.Task[list[AIFixProposal]]]:
+    """Launch AI fix generation tasks in the background with rate limiting."""
+    # Background AI Task Orchestration with Semaphore to avoid overloading
     ai_semaphore = asyncio.Semaphore(1)
 
     async def _wrapped_generate_fixes(
@@ -95,14 +115,10 @@ async def handle_fix(
             await asyncio.sleep(0.5)
             return fixes
 
-    # Launch all AI tasks immediately in the background
-    ai_tasks = [
+    return [
         asyncio.create_task(_wrapped_generate_fixes(result, project_summary))
         for result in results
     ]
-
-    for idx, result in enumerate(results):
-        await _process_fix_interactive(idx, len(results), result, ai_tasks[idx])
 
 
 async def _process_fix_interactive(

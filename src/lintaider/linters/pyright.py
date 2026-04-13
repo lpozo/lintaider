@@ -22,7 +22,7 @@ class PyrightLinter(BaseLinter):
         Returns:
             A list of command arguments.
         """
-        return ["uv", "run", "pyright", "--outputjson", str(target.absolute())]
+        return ["pyright", "--outputjson", str(target.absolute())]
 
     def parse_output(
         self,

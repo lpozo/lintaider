@@ -1,3 +1,4 @@
+"""Context extraction and project summary utilities for linters."""
 import ast
 import tomllib
 from dataclasses import dataclass, field
@@ -21,7 +22,6 @@ class ProjectSummary:
 
     file_tree: list[str] = field(default_factory=list)
     public_symbols: list[SymbolInfo] = field(default_factory=list)
-    common_imports: set[str] = field(default_factory=set)
     target_config: dict[str, Any] = field(default_factory=dict)
 
 
@@ -97,38 +97,48 @@ def get_context_bounds(file_path: Path, line_start: int) -> tuple[int, str]:
     try:
         content = file_path.read_text(encoding="utf-8")
         tree = ast.parse(content)
-        
-        innermost_node = None
-        innermost_level = -1
+        innermost_node = _find_innermost_block(tree, line_start)
 
-        for node in ast.walk(tree):
-            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
-                # Check if it contains the line
-                start = node.lineno
-                end = getattr(node, "end_lineno", node.lineno)
-                if start <= line_start <= end:
-                    # Find depth (approximate by node hierarchy if we used a visitor, 
-                    # but simple lineno comparison works for nested blocks)
-                    if innermost_node is None or node.lineno >= innermost_node.lineno:
-                        innermost_node = node
-
-        if innermost_node:
+        if isinstance(
+            innermost_node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
+        ):
             kind = "class" if isinstance(innermost_node, ast.ClassDef) else "def"
             return innermost_node.lineno - 1, f"in {kind} {innermost_node.name}"
 
         return max(0, line_start - 10), "in module scope"
     except (OSError, UnicodeDecodeError, SyntaxError):
         # Fallback to simple string search if AST fails
-        try:
-            lines = file_path.read_text(encoding="utf-8").splitlines()
-            current_idx = line_start - 1
-            for i in range(current_idx, -1, -1):
-                line = lines[i].strip()
-                if line.startswith(("def ", "class ")):
-                    return i, f"in {line.split('(')[0].split(':')[0].strip()}"
-            return max(0, current_idx - 10), "in module scope"
-        except (OSError, UnicodeDecodeError):
-            return 0, "unknown context"
+        return _fallback_context_search(file_path, line_start)
+
+
+def _find_innermost_block(tree: ast.AST, line_start: int) -> ast.AST | None:
+    """Find the innermost function or class block containing the line."""
+    innermost_node = None
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            start = node.lineno
+            end = getattr(node, "end_lineno", node.lineno)
+            if (
+                start <= line_start <= end
+                and (innermost_node is None or node.lineno >= innermost_node.lineno)
+            ):
+                innermost_node = node
+    return innermost_node
+
+
+def _fallback_context_search(file_path: Path, line_start: int) -> tuple[int, str]:
+    """Simple string-based search for context fallback."""
+    try:
+        lines = file_path.read_text(encoding="utf-8").splitlines()
+        current_idx = line_start - 1
+        for i in range(current_idx, -1, -1):
+            line = lines[i].strip()
+            if line.startswith(("def ", "class ")):
+                name = line.split("(")[0].split(":")[0].strip()
+                return i, f"in {name}"
+        return max(0, current_idx - 10), "in module scope"
+    except (OSError, UnicodeDecodeError):
+        return 0, "unknown context"
 
 
 def get_linter_context(
@@ -224,26 +234,30 @@ def parse_target_config(target_path: Path) -> dict[str, Any]:
     return config_data
 
 
-def _extract_symbols(file_path: Path, root_path: Path | None = None) -> list[SymbolInfo]:
+def _extract_symbols(
+    file_path: Path, root_path: Path | None = None
+) -> list[SymbolInfo]:
     """Extract top-level public classes and functions from a file."""
     symbols = []
     try:
         content = file_path.read_text(encoding="utf-8")
         tree = ast.parse(content)
         for node in tree.body:
-            if isinstance(node, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
-                if not node.name.startswith("_"):
-                    kind = "class" if isinstance(node, ast.ClassDef) else "function"
-                    symbols.append(
-                        SymbolInfo(
-                            name=node.name,
-                            kind=kind,
-                            line=node.lineno,
-                            file_path=file_path.relative_to(root_path)
-                            if root_path
-                            else file_path,
-                        )
+            if (
+                isinstance(node, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef))
+                and not node.name.startswith("_")
+            ):
+                kind = "class" if isinstance(node, ast.ClassDef) else "function"
+                symbols.append(
+                    SymbolInfo(
+                        name=node.name,
+                        kind=kind,
+                        line=node.lineno,
+                        file_path=file_path.relative_to(root_path)
+                        if root_path
+                        else file_path,
                     )
+                )
     except (OSError, UnicodeDecodeError, SyntaxError):
         pass
     return symbols[:10]  # Limit symbols per file

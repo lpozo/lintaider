@@ -23,8 +23,6 @@ class RuffLinter(BaseLinter):
             A list of command arguments.
         """
         return [
-            "uv",
-            "run",
             "ruff",
             "check",
             "--output-format=json",

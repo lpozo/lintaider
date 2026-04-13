@@ -23,8 +23,6 @@ class PylintLinter(BaseLinter):
             A list of command arguments.
         """
         return [
-            "uv",
-            "run",
             "pylint",
             "--output-format=json",
             str(target.absolute()),

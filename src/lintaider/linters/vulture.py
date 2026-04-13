@@ -22,7 +22,7 @@ class VultureLinter(BaseLinter):
         Returns:
             A list of command arguments.
         """
-        return ["uv", "run", "vulture", str(target.absolute())]
+        return ["vulture", str(target.absolute())]
 
     def parse_output(
         self, process_result: AsyncCompletedProcess, target: Path

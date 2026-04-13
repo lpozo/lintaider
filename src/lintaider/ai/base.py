@@ -1,3 +1,4 @@
+"""Base classes and interfaces for AI providers."""
 import abc
 from dataclasses import dataclass
 from pathlib import Path
@@ -64,13 +65,17 @@ class BaseAIProvider(abc.ABC):
             # Compact file tree
             files = "\n".join(f"- {f}" for f in project_summary.file_tree[:20])
             # Filter symbols for current file or relevant names
-            symbols = self._format_relevant_symbols(result, project_summary.public_symbols)
+            symbols = self._format_relevant_symbols(
+                result, project_summary.public_symbols
+            )
             project_context = (
                 f"Project Structure:\n{files}\n\nRelevant Symbols:\n{symbols}"
             )
 
             if project_summary.target_config:
-                target_config = f"Project Linter Config:\n{project_summary.target_config}"
+                target_config = (
+                    f"Project Linter Config:\n{project_summary.target_config}"
+                )
 
         # Add general linter advice
         if result.linter_name.lower() == "vulture":

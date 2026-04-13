@@ -25,8 +25,6 @@ class RadonLinter(BaseLinter):
             A list of command arguments.
         """
         return [
-            "uv",
-            "run",
             "radon",
             "cc",
             "-j",

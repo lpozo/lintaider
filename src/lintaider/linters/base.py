@@ -2,6 +2,8 @@
 
 import abc
 import asyncio
+import shutil
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -56,11 +58,24 @@ class BaseLinter(abc.ABC):
             target: The file or directory to lint.
 
         Returns:
-            A list of standardized LinterResult objects.
+            A list of standardized linter results.
         """
         cmd = self.build_command(target)
-        process_result = await self._run_command(cmd, Path.cwd())
+        prefix = self._get_command_prefix()
+        full_cmd = prefix + cmd
+
+        process_result = await self._run_command(full_cmd, Path.cwd())
         return self.parse_output(process_result, target)
+
+    def _get_command_prefix(self) -> list[str]:
+        """Check for 'uv' or fall back to the current python executable.
+
+        Returns:
+            ["uv", "run"] if uv is present, otherwise [sys.executable, "-m"].
+        """
+        if shutil.which("uv"):
+            return ["uv", "run"]
+        return [sys.executable, "-m"]
 
     async def _run_command(self, cmd: list[str], cwd: Path) -> AsyncCompletedProcess:
         """Helper to run a shell command asynchronously and capture output.

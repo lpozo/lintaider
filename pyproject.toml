@@ -82,3 +82,11 @@ disable = [
 [tool.vulture]
 ignore_decorators = ["@main.command", "@click.command", "@click.group"]
 ignore_names = ["*Linter", "get_supported_providers"]
+
+[tool.pyright]
+pythonVersion = "3.12"
+venvPath = "."
+venv = ".venv"
+typeCheckingMode = "basic"
+reportMissingImports = true
+reportMissingTypeStubs = false

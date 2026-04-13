@@ -24,7 +24,7 @@ class BanditLinter(BaseLinter):
         """
         target_str = str(target.absolute())
         args = ["-r", target_str] if target.is_dir() else [target_str]
-        return ["uv", "run", "bandit", "-f", "json"] + args
+        return ["bandit", "-f", "json"] + args
 
     def parse_output(
         self,

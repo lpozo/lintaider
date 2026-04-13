@@ -180,7 +180,8 @@ def test_cli_fix_with_issue_skip(mocker, tmp_path, mock_config) -> None:
     result = runner.invoke(main, ["fix", "--input", str(input_file)], input="s\n")
 
     assert result.exit_code == 0
-    assert "Option 1: Fix" in result.output
+    assert "Option 1" in result.output
+    assert "Fix" in result.output
     assert "Skipping" in result.output
 
 
