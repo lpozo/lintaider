@@ -30,7 +30,8 @@ def linter() -> VultureLinter:
         ("test.py:1: unused variable 'x' (60% confidence)\n", 1, 1),
         # Multiple issues
         (
-            "file1.py:10: unused function 'foo'\nfile1.py:20: unused class 'Bar'\n",
+            "file1.py:10: unused function 'foo'\n"
+            "file1.py:20: unused class 'Bar'\n",
             2,
             10,
         ),

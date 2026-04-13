@@ -80,7 +80,7 @@ def test_cli_scan_with_issues(mocker, tmp_path, mock_config) -> None:
 def test_cli_scan_human_readable_generates_markdown(
     mocker, tmp_path, mock_config
 ) -> None:
-    """Test that --human-readable generates linting-report.md and JSON output."""
+    """Test that --human-readable generates markdown and JSON output."""
     import json
     from pathlib import Path
 

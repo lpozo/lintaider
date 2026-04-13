@@ -33,7 +33,7 @@ def test_linter_result_creation() -> None:
 
 
 def test_linter_result_optional_fields_defaults() -> None:
-    """Test LinterResult with only mandatory fields and default snippet_context."""
+    """Test LinterResult with mandatory fields and default snippet context."""
     result = LinterResult(
         file_path=Path("test.py"),
         line_start=1,
@@ -52,7 +52,7 @@ def test_linter_result_optional_fields_defaults() -> None:
 
 
 def test_linter_result_to_dict() -> None:
-    """Test serialization to dictionary, ensuring Path is converted to string."""
+    """Test serialization to dict, ensuring Path is converted to string."""
     result = LinterResult(
         file_path=Path("folder/file.py"),
         line_start=1,
@@ -103,7 +103,7 @@ def test_linter_result_from_dict_full() -> None:
 
 
 def test_linter_result_from_dict_minimal() -> None:
-    """Test reconstruction from a minimal dictionary with missing optional keys."""
+    """Test reconstruction from minimal dict with missing optional keys."""
     data = {
         "file_path": "simple.py",
         "line_start": 1,

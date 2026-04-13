@@ -164,7 +164,10 @@ def test_save_provider_api_key_fallback_to_env(tmp_path) -> None:
 
 
 def test_save_provider_api_key_no_env_var() -> None:
-    """Test save returns 'none' for providers without env var (e.g., ollama)."""
+    """Test save returns 'none' for providers without env var.
+
+    Example provider: ollama.
+    """
     backend = save_provider_api_key("ollama", "ignored")
     assert backend == "none"
 
