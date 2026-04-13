@@ -1,9 +1,22 @@
 [project]
 name = "lintaider"
 version = "0.1.0"
-description = "Add your description here"
+description = "AI-assisted code auditing and auto-fix CLI for Python projects"
 readme = "README.md"
 requires-python = ">=3.12"
+license = { text = "MIT" }
+authors = [
+    { name = "Leodanis Pozo Ramos", email = "lpozor78@gmail.com" },
+]
+keywords = ["linter", "ai", "code-review", "automation", "fix", "static-analysis"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Quality Assurance",
+]
 dependencies = [
     "bandit>=1.9.4",
     "click>=8.3.1",
@@ -21,6 +34,11 @@ dependencies = [
     "semgrep>=1.86.0",
     "vulture>=2.16",
 ]
+
+[project.urls]
+Homepage = "https://github.com/lpozo/lintaider"
+Repository = "https://github.com/lpozo/lintaider.git"
+Issues = "https://github.com/lpozo/lintaider/issues"
 
 [dependency-groups]
 dev = [

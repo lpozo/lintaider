@@ -4,8 +4,9 @@ import json
 from pathlib import Path
 
 import pytest
-from lintaider.linters.radon import RadonLinter
+
 from lintaider.linters.base import AsyncCompletedProcess
+from lintaider.linters.radon import RadonLinter
 
 
 @pytest.fixture(autouse=True)
@@ -28,57 +29,83 @@ def linter() -> RadonLinter:
     [
         # Single complex function
         (
-            json.dumps({
-                "src/cli.py": [
-                    {
-                        "type": "function",
-                        "name": "_async_scan",
-                        "classname": "",
-                        "complexity": 18,
-                        "rank": "C",
-                        "lineno": 150,
-                        "endline": 214,
-                        "col_offset": 0,
-                    }
-                ]
-            }),
-            1, "CC-C", "_async_scan"
+            json.dumps(
+                {
+                    "src/cli.py": [
+                        {
+                            "type": "function",
+                            "name": "_async_scan",
+                            "classname": "",
+                            "complexity": 18,
+                            "rank": "C",
+                            "lineno": 150,
+                            "endline": 214,
+                            "col_offset": 0,
+                        }
+                    ]
+                }
+            ),
+            1,
+            "CC-C",
+            "_async_scan",
         ),
         # Method inside a class
         (
-            json.dumps({
-                "module.py": [
-                    {
-                        "type": "method",
-                        "name": "process",
-                        "classname": "Engine",
-                        "complexity": 25,
-                        "rank": "D",
-                        "lineno": 10,
-                        "endline": 50,
-                        "col_offset": 4,
-                    }
-                ]
-            }),
-            1, "CC-D", "Engine.process"
+            json.dumps(
+                {
+                    "module.py": [
+                        {
+                            "type": "method",
+                            "name": "process",
+                            "classname": "Engine",
+                            "complexity": 25,
+                            "rank": "D",
+                            "lineno": 10,
+                            "endline": 50,
+                            "col_offset": 4,
+                        }
+                    ]
+                }
+            ),
+            1,
+            "CC-D",
+            "Engine.process",
         ),
         # Multiple files with issues
         (
-            json.dumps({
-                "a.py": [
-                    {"type": "function", "name": "f1", "complexity": 12, "rank": "C", "lineno": 1, "endline": 10},
-                ],
-                "b.py": [
-                    {"type": "function", "name": "f2", "complexity": 30, "rank": "F", "lineno": 5, "endline": 60},
-                ]
-            }),
-            2, "CC-C", "f1"
+            json.dumps(
+                {
+                    "a.py": [
+                        {
+                            "type": "function",
+                            "name": "f1",
+                            "complexity": 12,
+                            "rank": "C",
+                            "lineno": 1,
+                            "endline": 10,
+                        },
+                    ],
+                    "b.py": [
+                        {
+                            "type": "function",
+                            "name": "f2",
+                            "complexity": 30,
+                            "rank": "F",
+                            "lineno": 5,
+                            "endline": 60,
+                        },
+                    ],
+                }
+            ),
+            2,
+            "CC-C",
+            "f1",
         ),
         # Empty results (no complex code)
         ("{}", 0, None, None),
         # Malformed JSON
         ("not json", 0, None, None),
-    ]
+    ],
 )
 @pytest.mark.asyncio
 async def test_radon_scenarios(

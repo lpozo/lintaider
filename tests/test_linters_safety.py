@@ -4,8 +4,9 @@ import json
 from pathlib import Path
 
 import pytest
-from lintaider.linters.safety import SafetyLinter, _extract_json
+
 from lintaider.linters.base import AsyncCompletedProcess
+from lintaider.linters.safety import SafetyLinter, _extract_json
 
 
 @pytest.fixture
@@ -14,39 +15,43 @@ def linter() -> SafetyLinter:
     return SafetyLinter()
 
 
-VALID_VULN_OUTPUT = json.dumps({
-    "vulnerabilities": [
-        {
-            "vulnerability_id": "85151",
-            "package_name": "protobuf",
-            "analyzed_version": "4.25.9",
-            "CVE": "CVE-2024-TEST",
-            "severity": "HIGH",
-            "advisory": "DoS via recursion depth bypass.",
-        }
-    ]
-})
+VALID_VULN_OUTPUT = json.dumps(
+    {
+        "vulnerabilities": [
+            {
+                "vulnerability_id": "85151",
+                "package_name": "protobuf",
+                "analyzed_version": "4.25.9",
+                "CVE": "CVE-2024-TEST",
+                "severity": "HIGH",
+                "advisory": "DoS via recursion depth bypass.",
+            }
+        ]
+    }
+)
 
-MULTI_VULN_OUTPUT = json.dumps({
-    "vulnerabilities": [
-        {
-            "vulnerability_id": "1001",
-            "package_name": "requests",
-            "analyzed_version": "2.20.0",
-            "CVE": "CVE-2023-0001",
-            "severity": "CRITICAL",
-            "advisory": "SSRF vulnerability.",
-        },
-        {
-            "vulnerability_id": "1002",
-            "package_name": "flask",
-            "analyzed_version": "1.0",
-            "CVE": "CVE-2023-0002",
-            "severity": "MEDIUM",
-            "advisory": "XSS in debug mode.",
-        },
-    ]
-})
+MULTI_VULN_OUTPUT = json.dumps(
+    {
+        "vulnerabilities": [
+            {
+                "vulnerability_id": "1001",
+                "package_name": "requests",
+                "analyzed_version": "2.20.0",
+                "CVE": "CVE-2023-0001",
+                "severity": "CRITICAL",
+                "advisory": "SSRF vulnerability.",
+            },
+            {
+                "vulnerability_id": "1002",
+                "package_name": "flask",
+                "analyzed_version": "1.0",
+                "CVE": "CVE-2023-0002",
+                "severity": "MEDIUM",
+                "advisory": "XSS in debug mode.",
+            },
+        ]
+    }
+)
 
 
 @pytest.mark.parametrize(
@@ -63,18 +68,18 @@ MULTI_VULN_OUTPUT = json.dumps({
         # Deprecation warning prepended to JSON
         (
             "\n+========+\nDEPRECATED\n+========+\n" + VALID_VULN_OUTPUT,
-            1, "VULN-85151", "protobuf"
+            1,
+            "VULN-85151",
+            "protobuf",
         ),
         # Missing fields in vulnerability
         (
-            json.dumps({
-                "vulnerabilities": [
-                    {"vulnerability_id": "9999"}
-                ]
-            }),
-            1, "VULN-9999", "unknown"
+            json.dumps({"vulnerabilities": [{"vulnerability_id": "9999"}]}),
+            1,
+            "VULN-9999",
+            "unknown",
         ),
-    ]
+    ],
 )
 @pytest.mark.asyncio
 async def test_safety_scenarios(

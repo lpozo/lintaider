@@ -20,7 +20,7 @@ and lets you apply AI-generated fixes interactively.
 ## Installation
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/lpozo/lintaider.git
 cd lintaider
 uv sync
 ```

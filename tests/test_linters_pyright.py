@@ -4,8 +4,9 @@ import json
 from pathlib import Path
 
 import pytest
-from lintaider.linters.pyright import PyrightLinter
+
 from lintaider.linters.base import AsyncCompletedProcess
+from lintaider.linters.pyright import PyrightLinter
 
 
 @pytest.fixture(autouse=True)
@@ -28,34 +29,37 @@ def linter() -> PyrightLinter:
     [
         # Standard success
         (
-            json.dumps({
-                "generalDiagnostics": [
-                    {
-                        "file": "test.py",
-                        "severity": "error",
-                        "message": "Type error",
-                        "rule": "reportGeneralTypeIssues",
-                        "range": {"start": {"line": 0, "character": 0}, "end": {"line": 0, "character": 5}}
-                    }
-                ]
-            }),
-            1, "reportGeneralTypeIssues"
+            json.dumps(
+                {
+                    "generalDiagnostics": [
+                        {
+                            "file": "test.py",
+                            "severity": "error",
+                            "message": "Type error",
+                            "rule": "reportGeneralTypeIssues",
+                            "range": {
+                                "start": {"line": 0, "character": 0},
+                                "end": {"line": 0, "character": 5},
+                            },
+                        }
+                    ]
+                }
+            ),
+            1,
+            "reportGeneralTypeIssues",
         ),
         # Empty results
         (json.dumps({"generalDiagnostics": []}), 0, None),
         # Malformed JSON
         ("Error", 0, None),
         # Missing fields
-        (
-            json.dumps({
-                "generalDiagnostics": [{"message": "No fields"}]
-            }),
-            1, "Unknown"
-        ),
-    ]
+        (json.dumps({"generalDiagnostics": [{"message": "No fields"}]}), 1, "Unknown"),
+    ],
 )
 @pytest.mark.asyncio
-async def test_pyright_scenarios(mocker, linter, stdout, expected_count, first_error_code) -> None:
+async def test_pyright_scenarios(
+    mocker, linter, stdout, expected_count, first_error_code
+) -> None:
     """Test various Pyright parsing scenarios."""
     mock_result = AsyncCompletedProcess(stdout=stdout, stderr="", returncode=0)
     mocker.patch.object(PyrightLinter, "_run_command", return_value=mock_result)

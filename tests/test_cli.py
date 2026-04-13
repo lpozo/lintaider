@@ -186,7 +186,6 @@ def test_cli_fix_with_issue_skip(mocker, tmp_path, mock_config) -> None:
 
 def test_cli_scan_verbose(mocker, tmp_path, mock_config) -> None:
     """Test that --verbose prints per-issue panels."""
-    import json
 
     runner = CliRunner()
     test_file = tmp_path / "error.py"
@@ -256,7 +255,7 @@ def test_cli_scan_skip_filter(mocker, tmp_path, mock_config) -> None:
     linters = kwargs.get("linters", []) or (args[0] if args else [])
     # Vulture, Radon, and Safety should remain
     assert len(linters) == 3
-    remaining_names = [l.__class__.__name__ for l in linters]
+    remaining_names = [linter.__class__.__name__ for linter in linters]
     assert "VultureLinter" in remaining_names
     assert "RadonLinter" in remaining_names
     assert "SafetyLinter" in remaining_names

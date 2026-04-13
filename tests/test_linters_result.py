@@ -1,9 +1,9 @@
 """Tests for the LinterResult data model."""
 
 from pathlib import Path
-from typing import Any
 
 import pytest
+
 from lintaider.linters.result import LinterResult
 
 

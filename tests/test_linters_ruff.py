@@ -4,8 +4,9 @@ import json
 from pathlib import Path
 
 import pytest
-from lintaider.linters.ruff import RuffLinter
+
 from lintaider.linters.base import AsyncCompletedProcess
+from lintaider.linters.ruff import RuffLinter
 
 
 @pytest.fixture(autouse=True)
@@ -28,16 +29,19 @@ def linter() -> RuffLinter:
     [
         # Standard success
         (
-            json.dumps([
-                {
-                    "code": "F401",
-                    "message": "'os' imported but unused",
-                    "filename": "test.py",
-                    "location": {"row": 1, "column": 1},
-                    "end_location": {"row": 1, "column": 10},
-                }
-            ]),
-            1, "F401"
+            json.dumps(
+                [
+                    {
+                        "code": "F401",
+                        "message": "'os' imported but unused",
+                        "filename": "test.py",
+                        "location": {"row": 1, "column": 1},
+                        "end_location": {"row": 1, "column": 10},
+                    }
+                ]
+            ),
+            1,
+            "F401",
         ),
         # Empty results
         ("[]", 0, None),
@@ -45,17 +49,18 @@ def linter() -> RuffLinter:
         ("Internal Error", 0, None),
         # Missing location fields
         (
-            json.dumps([{
-                "code": "E999",
-                "message": "Minimal error",
-                "filename": "minimal.py"
-            }]),
-            1, "E999"
+            json.dumps(
+                [{"code": "E999", "message": "Minimal error", "filename": "minimal.py"}]
+            ),
+            1,
+            "E999",
         ),
-    ]
+    ],
 )
 @pytest.mark.asyncio
-async def test_ruff_scenarios(mocker, linter, stdout, expected_count, first_error_code) -> None:
+async def test_ruff_scenarios(
+    mocker, linter, stdout, expected_count, first_error_code
+) -> None:
     """Test various Ruff parsing scenarios."""
     mock_result = AsyncCompletedProcess(stdout=stdout, stderr="", returncode=0)
     mocker.patch.object(RuffLinter, "_run_command", return_value=mock_result)
