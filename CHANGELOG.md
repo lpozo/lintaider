@@ -8,26 +8,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Added
 
-- Zero-config operation: bundled best-practice configurations for Ruff, Pylint, and Bandit are applied automatically when no local config is found.
-- Context-aware configuration: production and test code receive separate rule sets automatically based on the target path.
-- `--human-readable` (`-r`) flag for `lintaider scan` to generate a Markdown report.
-- Google-style docstrings across the entire codebase.
-- `Attributes:` sections in all dataclass docstrings.
-
-### Fixed
-
-- Configuration discovery now correctly validates `[tool.<linter>]` sections in `pyproject.toml` before treating it as a local config file.
-- `pyproject.toml` test glob changed from `tests/*` to `tests/**/*.py` for broader Ruff rule matching.
-
-### Changed
-
-- Improved CLI help text for all commands and options.
-- Expanded all private-function docstrings to include `Args:` and `Returns:`.
-
-## [0.1.0] - 2026-04-13
-
-### Added
-
 - Initial project structure with async linter orchestration.
 - Support for Ruff, Pylint, Bandit, MyPy, Pyright, Semgrep, Vulture, Radon, and Safety.
 - AI-assisted fix generation via LiteLLM (`ollama`, `openai`, `anthropic`, `gemini`).
@@ -35,15 +15,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Standardized `LinterResult` model for unified issue representation.
 - Semantic context extraction (function/class boundaries) for richer AI prompts.
 - Fuzzy patch application with `difflib.SequenceMatcher` fallback.
-- Human-readable Markdown report generation (`--human-readable`).
+- `--human-readable` (`-r`) flag for `lintaider scan` to generate a Markdown report.
 - GitHub Actions CI/CD with PyPI Trusted Publishing support.
-
-### Fixed
-
-- Various linting and formatting issues across the codebase.
-- Improved error handling in linter output parsing.
-
-### Changed
-
-- Refactored CLI to use dedicated command handlers (`scan_handler`, `fix_handler`, `init_handler`).
-- Enhanced configuration management with TOML and environment variables.
+- Zero-config operation: bundled best-practice configurations for Ruff, Pylint, and Bandit are applied automatically when no local config is found.
+- Context-aware configuration: production and test code receive separate rule sets automatically based on the target path.
+- Project context summary extraction injected into AI fix generation.
+- Linter command execution abstracted to support both `uv` and system Python environments.
+- CLI modularized into dedicated command handlers (`scan_handler`, `fix_handler`, `init_handler`).
+- Configuration management backed by TOML and environment variables, with `lintaider init` for interactive setup.
+- Improved CLI help text for all commands and options.
+- Google-style docstrings across the entire codebase.
+- `Attributes:` sections in all dataclass docstrings.
+- Configuration discovery validates `[tool.<linter>]` sections in `pyproject.toml` to correctly detect local configs.
+- Ruff test glob set to `tests/**/*.py` for broader rule matching in test files.
