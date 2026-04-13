@@ -9,7 +9,12 @@ from lintaider.linters.result import LinterResult
 
 @dataclass  # pylint: disable=too-few-public-methods
 class AIFixProposal:
-    """A proposed fix from the AI."""
+    """A proposed fix from the AI.
+
+    Attributes:
+        explanation: A human-readable explanation of why this fix is recommended.
+        code_diff: A unified-style diff representing the proposed changes.
+    """
 
     explanation: str
     code_diff: str
@@ -102,7 +107,15 @@ class BaseAIProvider(abc.ABC):
     def _format_relevant_symbols(
         self, result: LinterResult, symbols: list[SymbolInfo]
     ) -> str:
-        """Format symbols that are relevant to the current file or error."""
+        """Format symbols that are relevant to the current file or error.
+
+        Args:
+            result: The linter result being addressed.
+            symbols: A list of all discovered public symbols in the project.
+
+        Returns:
+            A formatted string listing the most relevant symbols.
+        """
         relevant = []
         for sym in symbols:
             # If it's in the same file or mentioned in the message/semantic context

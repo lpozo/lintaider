@@ -68,7 +68,9 @@ target-version = "py312"
 select = [
     "E", "F", "W", "I", "N", "UP", "B", "A", "C4", "SIM", "PTH"
 ]
-ignore = []
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["S101", "ARG001"]
 
 [tool.ruff.format]
 quote-style = "double"
@@ -81,7 +83,22 @@ disable = [
 
 [tool.vulture]
 ignore_decorators = ["@main.command", "@click.command", "@click.group"]
-ignore_names = ["*Linter", "get_supported_providers"]
+ignore_names = [
+    "*Linter",
+    "get_supported_providers",
+    "mock_*",
+    "test_*",
+    "mocker",
+    "tmp_path",
+    "AsyncMock",
+    "MagicMock",
+    "_mock_get_context",
+    "MockLinter",
+    "process_result",
+    "side_effect",
+    "build_command",
+    "parse_output",
+]
 
 [tool.pyright]
 pythonVersion = "3.12"
@@ -90,3 +107,14 @@ venv = ".venv"
 typeCheckingMode = "basic"
 reportMissingImports = true
 reportMissingTypeStubs = false
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+disallow_incomplete_defs = false

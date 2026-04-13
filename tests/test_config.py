@@ -107,8 +107,8 @@ def test_config_empty_linter_lists() -> None:
     """Test handling of empty linter lists."""
     config = Config(skip_linters=[], only_linters=[])
     config.normalize()
-    assert config.skip_linters == []
-    assert config.only_linters == []
+    assert not config.skip_linters
+    assert not config.only_linters
 
 
 def test_config_whitespace_only_linter_entries() -> None:

@@ -101,7 +101,7 @@ def _select_provider(current_provider: str) -> str:
     console.print(table)
 
     while True:
-        raw_choice = click.prompt(
+        raw_choice: str = click.prompt(
             "Select provider number",
             default=str(default_index),
             show_default=True,
@@ -145,7 +145,7 @@ def _update_provider_api_key(provider: str) -> str | None:
         if existing_key
         else f"Enter {env_var}"
     )
-    api_key = click.prompt(prompt, default="", hide_input=True).strip()
+    api_key: str = click.prompt(prompt, default="", hide_input=True).strip()
 
     if not api_key:
         if existing_key:
@@ -182,7 +182,7 @@ def _select_api_base(provider: str, current_api_base: str | None) -> str | None:
     if not default_api_base and provider_spec:
         default_api_base = provider_spec.default_api_base
 
-    api_base_input = click.prompt(
+    api_base_input: str = click.prompt(
         "API base URL override (leave empty for provider default)",
         default=default_api_base or "",
         show_default=bool(default_api_base),
@@ -263,7 +263,8 @@ def _select_model(
     )
 
     if not model_candidates:
-        return click.prompt("Model name", default=default_model or "llama3").strip()
+        model: str = click.prompt("Model name", default=default_model or "llama3")
+        return model.strip()
 
     table = Table(title="Available Models", show_header=True)
     table.add_column("#", style="cyan", justify="right")
@@ -276,7 +277,7 @@ def _select_model(
     if default_model and default_model in model_candidates:
         default_index = model_candidates.index(default_model) + 1
 
-    choice = click.prompt(
+    choice: str = click.prompt(
         "Select model number or type a custom model",
         default=str(default_index),
         show_default=True,

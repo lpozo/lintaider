@@ -327,11 +327,11 @@ def test_init_helper_parse_linter_list() -> None:
 
     # Empty
     result = _parse_linter_list("")
-    assert result == []
+    assert not result
 
     # Whitespace only
     result = _parse_linter_list("  ,  ,  ")
-    assert result == []
+    assert not result
 
 
 def test_init_helper_select_linter_preferences(mocker) -> None:

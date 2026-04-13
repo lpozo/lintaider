@@ -20,11 +20,21 @@ class BanditLinter(BaseLinter):
             target: The file or directory to scan.
 
         Returns:
-            A list of command arguments.
+            A list of command arguments including format flags and config.
         """
         target_str = str(target.absolute())
         args = ["-r", target_str] if target.is_dir() else [target_str]
-        return ["bandit", "-f", "json"] + args
+
+        # Get effective config (nearest local or bundled default)
+        config_file = self._get_effective_config_path(
+            target, ["bandit.yaml", ".bandit", "pyproject.toml"]
+        )
+
+        cmd = ["bandit", "-f", "json"]
+        if config_file:
+            cmd += ["-c", str(config_file.absolute())]
+
+        return cmd + args
 
     def parse_output(
         self,

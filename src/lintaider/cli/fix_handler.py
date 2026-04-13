@@ -73,7 +73,15 @@ async def handle_fix(
 async def _load_scan_results(
     input_file: Path, target: Path | None
 ) -> list[LinterResult]:
-    """Check for input file, run scan if needed, and load results."""
+    """Load scan results from disk, triggering an auto-scan if the file is missing.
+
+    Args:
+        input_file: Path to the JSON results file produced by ``lintaider scan``.
+        target: Optional file or directory to scan when ``input_file`` is absent.
+
+    Returns:
+        A list of ``LinterResult`` objects, or an empty list on any failure.
+    """
     if not input_file.exists():
         if target:
             console.print(
@@ -90,7 +98,7 @@ async def _load_scan_results(
 
     try:
         data = json.loads(input_file.read_text(encoding="utf-8"))
-        results = [LinterResult.from_dict(item) for item in data]
+        results: list[LinterResult] = [LinterResult.from_dict(item) for item in data]
         if not results:
             console.print("[bold green]No issues to fix.[/bold green]")
             return []
@@ -103,7 +111,17 @@ async def _load_scan_results(
 def _orchestrate_ai_tasks(
     ai: Any, results: list[LinterResult], project_summary: ProjectSummary
 ) -> list[asyncio.Task[list[AIFixProposal]]]:
-    """Launch AI fix generation tasks in the background with rate limiting."""
+    """Launch concurrent AI fix-generation tasks, rate-limited by a semaphore.
+
+    Args:
+        ai: The active AI provider instance.
+        results: All linter results to generate fixes for.
+        project_summary: Project-wide context passed to each AI call.
+
+    Returns:
+        A list of asyncio tasks, one per result, each resolving to a list
+        of ``AIFixProposal`` objects.
+    """
     # Background AI Task Orchestration with Semaphore to avoid overloading
     ai_semaphore = asyncio.Semaphore(1)
 
@@ -111,7 +129,7 @@ def _orchestrate_ai_tasks(
         res: LinterResult, summary: ProjectSummary
     ) -> list[AIFixProposal]:
         async with ai_semaphore:
-            fixes = await ai.generate_fixes(res, summary)
+            fixes: list[AIFixProposal] = await ai.generate_fixes(res, summary)
             await asyncio.sleep(0.5)
             return fixes
 

@@ -1,4 +1,4 @@
-"""AI package initialization."""
+"""AI provider abstractions and LiteLLM integration for fix generation."""
 
 from lintaider.ai.base import AIFixProposal, BaseAIProvider
 from lintaider.ai.provider import (

@@ -8,7 +8,14 @@ from typing import Any
 
 @dataclass
 class SymbolInfo:
-    """Information about a public symbol (class or function)."""
+    """Information about a public symbol (class or function).
+
+    Attributes:
+        name: The unqualified symbol name.
+        kind: Either ``"class"`` or ``"function"``.
+        line: The 1-indexed line where the symbol is defined.
+        file_path: Path to the file containing the symbol.
+    """
 
     name: str
     kind: str  # "class" or "function"
@@ -18,7 +25,14 @@ class SymbolInfo:
 
 @dataclass
 class ProjectSummary:
-    """Compact summary of a target project."""
+    """Compact summary of a target project for AI context.
+
+    Attributes:
+        file_tree: Relative path strings for discovered Python files.
+        public_symbols: Top-level public classes and functions found.
+        target_config: Parsed linter configuration sections from
+            ``pyproject.toml``, keyed by tool name (e.g., ``"ruff"``).
+    """
 
     file_tree: list[str] = field(default_factory=list)
     public_symbols: list[SymbolInfo] = field(default_factory=list)
@@ -112,7 +126,16 @@ def get_context_bounds(file_path: Path, line_start: int) -> tuple[int, str]:
 
 
 def _find_innermost_block(tree: ast.AST, line_start: int) -> ast.AST | None:
-    """Find the innermost function or class block containing the line."""
+    """Find the innermost function or class block containing the line.
+
+    Args:
+        tree: The parsed AST of the source file.
+        line_start: 1-indexed line number to locate.
+
+    Returns:
+        The innermost ``FunctionDef``, ``AsyncFunctionDef``, or ``ClassDef``
+        node that contains ``line_start``, or ``None`` if not found.
+    """
     innermost_node = None
     for node in ast.walk(tree):
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
@@ -127,7 +150,15 @@ def _find_innermost_block(tree: ast.AST, line_start: int) -> ast.AST | None:
 
 
 def _fallback_context_search(file_path: Path, line_start: int) -> tuple[int, str]:
-    """Simple string-based search for context fallback."""
+    """Simple string-based search for context when AST parsing fails.
+
+    Args:
+        file_path: Path to the source file.
+        line_start: 1-indexed line number of the issue.
+
+    Returns:
+        A tuple of ``(start_index, info_string)`` as a best-effort fallback.
+    """
     try:
         lines = file_path.read_text(encoding="utf-8").splitlines()
         current_idx = line_start - 1
@@ -237,7 +268,16 @@ def parse_target_config(target_path: Path) -> dict[str, Any]:
 def _extract_symbols(
     file_path: Path, root_path: Path | None = None
 ) -> list[SymbolInfo]:
-    """Extract top-level public classes and functions from a file."""
+    """Extract top-level public classes and functions from a Python file.
+
+    Args:
+        file_path: Path to the ``.py`` file to parse.
+        root_path: Optional project root used to compute relative paths.
+
+    Returns:
+        Up to 10 ``SymbolInfo`` instances for the public top-level symbols
+        found in the file.
+    """
     symbols = []
     try:
         content = file_path.read_text(encoding="utf-8")

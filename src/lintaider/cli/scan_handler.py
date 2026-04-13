@@ -3,7 +3,6 @@
 import json
 from collections import Counter
 from pathlib import Path
-from typing import cast
 
 from rich.panel import Panel
 from rich.progress import (
@@ -17,7 +16,7 @@ from rich.table import Table
 
 from lintaider.cli.ui import HUMAN_READABLE_REPORT_FILE, console
 from lintaider.config import Config
-from lintaider.linters import LINTER_MAP, BaseLinter, Engine
+from lintaider.linters import LINTER_MAP, Engine
 from lintaider.linters.result import LinterResult
 
 
@@ -51,10 +50,8 @@ async def handle_scan(  # pylint: disable=too-many-arguments,too-many-positional
     config = Config.load()
     active_linters = _get_active_linters(config, only, skip)
 
-    # Use cast to satisfy MyPy that we are not instantiating the abstract BaseLinter
-    engine = Engine(
-        linters=[cast(type[BaseLinter], LINTER_MAP[name])() for name in active_linters]
-    )
+    # Use the linter mapping to instantiate the active linters
+    engine = Engine(linters=[LINTER_MAP[name]() for name in active_linters])
 
     with Progress(
         SpinnerColumn(),
@@ -67,7 +64,7 @@ async def handle_scan(  # pylint: disable=too-many-arguments,too-many-positional
             "[cyan]Running linters...", total=len(active_linters)
         )
 
-        def progress_cb():
+        def progress_cb() -> None:
             progress.update(task_id, advance=1)
 
         results = await engine.run_all(target, progress_callback=progress_cb)

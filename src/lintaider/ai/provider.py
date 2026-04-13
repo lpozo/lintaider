@@ -1,7 +1,7 @@
 """LiteLLM AI provider implementation for universal model access."""
 
 import json
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import requests
 from dotenv import load_dotenv
@@ -191,7 +191,9 @@ def _prepare_request_headers_and_params(
     return headers, params
 
 
-def _parse_openai_style_models(provider_name: str, raw_models: list) -> list[str]:
+def _parse_openai_style_models(
+    provider_name: str, raw_models: list[dict[str, Any]]
+) -> list[str]:
     """Extract model names from an OpenAI-style model list response.
 
     Used by OpenAI, Anthropic, and Gemini, which all return either a ``data``
@@ -219,7 +221,7 @@ def _parse_openai_style_models(provider_name: str, raw_models: list) -> list[str
     return sorted(set(names))
 
 
-def _parse_model_response(provider_name: str, payload: dict) -> list[str]:
+def _parse_model_response(provider_name: str, payload: dict[str, Any]) -> list[str]:
     """Dispatch model name parsing based on provider response format.
 
     Ollama uses a ``models`` list with ``name`` fields. All other providers

@@ -7,6 +7,11 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
+from lintaider.linters.config_discovery import (
+    find_nearest_local_config,
+    get_bundled_config_path,
+    is_test_path,
+)
 from lintaider.linters.result import LinterResult
 
 
@@ -76,6 +81,29 @@ class BaseLinter(abc.ABC):
         if shutil.which("uv"):
             return ["uv", "run"]
         return [sys.executable, "-m"]
+
+    def _get_effective_config_path(
+        self, target: Path, candidate_filenames: list[str]
+    ) -> Path | None:
+        """Find the best configuration file for the target.
+
+        Args:
+            target: The file or directory being scanned.
+            candidate_filenames: Filename candidates for local discovery.
+
+        Returns:
+            The path to the effective config file, or None.
+        """
+        # 1. Check for nearest local config
+        local_config = find_nearest_local_config(
+            target, candidate_filenames, self.name
+        )
+        if local_config:
+            return local_config
+
+        # 2. Fallback to bundled default based on category
+        category = "test" if is_test_path(target) else "default"
+        return get_bundled_config_path(self.name, category)
 
     async def _run_command(self, cmd: list[str], cwd: Path) -> AsyncCompletedProcess:
         """Helper to run a shell command asynchronously and capture output.
