@@ -55,11 +55,18 @@ def test_config_normalize_model() -> None:
 def test_config_normalize_linter_lists() -> None:
     """Test normalization of linter lists."""
     config = Config(
-        skip_linters=["Ruff", "PYLINT", "ruff"],  # Has duplicate and mixed case
+        skip_linters=[
+            "Ruff",
+            "PYLINT",
+            "ruff",
+        ],  # Has duplicate and mixed case
         only_linters=["BanDit", "mypy"],
     )
     config.normalize()
-    assert config.skip_linters == ["ruff", "pylint"]  # Deduplicated and lowercase
+    assert config.skip_linters == [
+        "ruff",
+        "pylint",
+    ]  # Deduplicated and lowercase
     assert config.only_linters == ["bandit", "mypy"]
 
 
@@ -90,7 +97,10 @@ def test_config_load_normalizes() -> None:
 
         loaded = Config.load(config_file)
         assert loaded.provider == "openai"  # Should be normalized to lowercase
-        assert loaded.skip_linters == ["ruff", "pylint"]  # Normalized to lowercase
+        assert loaded.skip_linters == [
+            "ruff",
+            "pylint",
+        ]  # Normalized to lowercase
     finally:
         if config_file.exists():
             config_file.unlink()

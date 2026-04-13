@@ -1,4 +1,5 @@
 """Context extraction and project summary utilities for linters."""
+
 import ast
 import tomllib
 from dataclasses import dataclass, field
@@ -91,7 +92,9 @@ def format_snippet(snippet: str, start_line: int) -> str:
         return ""
 
     lines = snippet.splitlines()
-    return "\n".join(f"{start_line + i:4d} | {line}" for i, line in enumerate(lines))
+    return "\n".join(
+        f"{start_line + i:4d} | {line}" for i, line in enumerate(lines)
+    )
 
 
 def get_context_bounds(file_path: Path, line_start: int) -> tuple[int, str]:
@@ -114,10 +117,16 @@ def get_context_bounds(file_path: Path, line_start: int) -> tuple[int, str]:
         innermost_node = _find_innermost_block(tree, line_start)
 
         if isinstance(
-            innermost_node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
+            innermost_node,
+            (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef),
         ):
-            kind = "class" if isinstance(innermost_node, ast.ClassDef) else "def"
-            return innermost_node.lineno - 1, f"in {kind} {innermost_node.name}"
+            kind = (
+                "class" if isinstance(innermost_node, ast.ClassDef) else "def"
+            )
+            return (
+                innermost_node.lineno - 1,
+                f"in {kind} {innermost_node.name}",
+            )
 
         return max(0, line_start - 10), "in module scope"
     except (OSError, UnicodeDecodeError, SyntaxError):
@@ -138,18 +147,21 @@ def _find_innermost_block(tree: ast.AST, line_start: int) -> ast.AST | None:
     """
     innermost_node = None
     for node in ast.walk(tree):
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+        if isinstance(
+            node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
+        ):
             start = node.lineno
             end = getattr(node, "end_lineno", node.lineno)
-            if (
-                start <= line_start <= end
-                and (innermost_node is None or node.lineno >= innermost_node.lineno)
+            if start <= line_start <= end and (
+                innermost_node is None or node.lineno >= innermost_node.lineno
             ):
                 innermost_node = node
     return innermost_node
 
 
-def _fallback_context_search(file_path: Path, line_start: int) -> tuple[int, str]:
+def _fallback_context_search(
+    file_path: Path, line_start: int
+) -> tuple[int, str]:
     """Simple string-based search for context when AST parsing fails.
 
     Args:
@@ -195,8 +207,12 @@ def get_linter_context(
         1-indexed first line of the snippet, and ``semantic_info`` is a string
         like ``"in def my_func"``.
     """
-    snippet_start_idx, semantic_info = get_context_bounds(file_path, line_start)
-    raw_snippet = extract_snippet(file_path, line_start, line_end, context_lines)
+    snippet_start_idx, semantic_info = get_context_bounds(
+        file_path, line_start
+    )
+    raw_snippet = extract_snippet(
+        file_path, line_start, line_end, context_lines
+    )
     snippet_start_line = snippet_start_idx + 1
 
     return raw_snippet, snippet_start_line, semantic_info
@@ -233,7 +249,9 @@ def get_project_summary(target_path: Path) -> ProjectSummary:
         summary.file_tree.append(str(rel_path))
 
         if "__init__" not in py_file.name:
-            summary.public_symbols.extend(_extract_symbols(py_file, target_path))
+            summary.public_symbols.extend(
+                _extract_symbols(py_file, target_path)
+            )
 
     return summary
 
@@ -283,11 +301,12 @@ def _extract_symbols(
         content = file_path.read_text(encoding="utf-8")
         tree = ast.parse(content)
         for node in tree.body:
-            if (
-                isinstance(node, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef))
-                and not node.name.startswith("_")
-            ):
-                kind = "class" if isinstance(node, ast.ClassDef) else "function"
+            if isinstance(
+                node, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)
+            ) and not node.name.startswith("_"):
+                kind = (
+                    "class" if isinstance(node, ast.ClassDef) else "function"
+                )
                 symbols.append(
                     SymbolInfo(
                         name=node.name,

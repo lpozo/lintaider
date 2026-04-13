@@ -72,7 +72,11 @@ PROVIDER_SPECS: dict[str, ProviderSpec] = {
         requires_api_key=True,
         default_model="gemini-2.0-flash",
         model_list_endpoint="/models",
-        recommended_models=("gemini-2.0-flash", "gemini-2.5-flash", "gemini-2.5-pro"),
+        recommended_models=(
+            "gemini-2.0-flash",
+            "gemini-2.5-flash",
+            "gemini-2.5-pro",
+        ),
     ),
 }
 

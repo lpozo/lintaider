@@ -29,7 +29,8 @@ def test_create_ai_provider_ollama() -> None:
     assert ollama.api_base == "http://localhost:11434"
 
     custom_ollama = cast(
-        LiteLLMProvider, create_ai_provider("ollama", "llama3", "http://remote:11434")
+        LiteLLMProvider,
+        create_ai_provider("ollama", "llama3", "http://remote:11434"),
     )
     assert custom_ollama.api_base == "http://remote:11434"
 
@@ -56,7 +57,9 @@ async def test_litellm_provider(mock_acompletion) -> None:
     """Test LiteLLMProvider integration."""
     mock_acompletion.return_value.choices[
         0
-    ].message.content = '[{"explanation": "Lite Fix", "code_diff": "print(2)"}]'
+    ].message.content = (
+        '[{"explanation": "Lite Fix", "code_diff": "print(2)"}]'
+    )
 
     provider = LiteLLMProvider(model="gpt-4o")
     linter_res = LinterResult(
@@ -236,7 +239,9 @@ def test_create_ai_provider_with_keychain() -> None:
     mock_keyring.get_password.return_value = "keyring_key"
 
     with patch("lintaider.ai.auth.keyring_module", mock_keyring):
-        provider = cast(LiteLLMProvider, create_ai_provider("openai", "gpt-4o"))
+        provider = cast(
+            LiteLLMProvider, create_ai_provider("openai", "gpt-4o")
+        )
 
     assert provider.api_key in ("keyring_key", None)  # May or may not fetch
     assert provider.model == "openai/gpt-4o"

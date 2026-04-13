@@ -50,7 +50,13 @@ def linter() -> RuffLinter:
         # Missing location fields
         (
             json.dumps(
-                [{"code": "E999", "message": "Minimal error", "filename": "minimal.py"}]
+                [
+                    {
+                        "code": "E999",
+                        "message": "Minimal error",
+                        "filename": "minimal.py",
+                    }
+                ]
             ),
             1,
             "E999",

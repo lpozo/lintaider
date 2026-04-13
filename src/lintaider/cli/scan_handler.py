@@ -86,7 +86,9 @@ async def handle_scan(  # pylint: disable=too-many-arguments,too-many-positional
 
     if human_readable:
         report_markdown = _build_markdown_report(target, results)
-        HUMAN_READABLE_REPORT_FILE.write_text(report_markdown, encoding="utf-8")
+        HUMAN_READABLE_REPORT_FILE.write_text(
+            report_markdown, encoding="utf-8"
+        )
         console.print(
             "[bold green]Human-readable report saved to "
             f"{HUMAN_READABLE_REPORT_FILE}[/bold green]"
@@ -193,7 +195,9 @@ def _get_active_linters(
     if only_list:
         active_linters = [name for name in active_linters if name in only_list]
     if skip_list:
-        active_linters = [name for name in active_linters if name not in skip_list]
+        active_linters = [
+            name for name in active_linters if name not in skip_list
+        ]
     return active_linters
 
 

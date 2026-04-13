@@ -35,7 +35,9 @@ class Engine:
         """
         all_results: list[LinterResult] = []
 
-        tasks = [asyncio.create_task(linter.run(target)) for linter in self.linters]
+        tasks = [
+            asyncio.create_task(linter.run(target)) for linter in self.linters
+        ]
 
         for coro in asyncio.as_completed(tasks):
             try:

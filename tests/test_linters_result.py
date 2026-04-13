@@ -141,7 +141,9 @@ def test_linter_result_roundtrip() -> None:
 
 def test_linter_result_from_dict_invalid_data() -> None:
     """Test that missing mandatory fields in from_dict raises KeyError."""
-    incomplete_data = {"file_path": "test.py"}  # Missing line_start, linter_name, etc.
+    incomplete_data = {
+        "file_path": "test.py"
+    }  # Missing line_start, linter_name, etc.
 
     with pytest.raises(KeyError):
         LinterResult.from_dict(incomplete_data)

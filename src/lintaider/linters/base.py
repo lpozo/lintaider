@@ -105,7 +105,9 @@ class BaseLinter(abc.ABC):
         category = "test" if is_test_path(target) else "default"
         return get_bundled_config_path(self.name, category)
 
-    async def _run_command(self, cmd: list[str], cwd: Path) -> AsyncCompletedProcess:
+    async def _run_command(
+        self, cmd: list[str], cwd: Path
+    ) -> AsyncCompletedProcess:
         """Helper to run a shell command asynchronously and capture output.
 
         Args:

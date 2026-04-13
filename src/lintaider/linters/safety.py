@@ -63,9 +63,7 @@ class SafetyLinter(BaseLinter):
             if cve == "CVE-2026-0994":
                 continue
 
-            message = (
-                f"[{severity}] {package_name}=={version} (CVE: {cve}) — {advisory}"
-            )
+            message = f"[{severity}] {package_name}=={version} (CVE: {cve}) — {advisory}"
 
             parsed_results.append(
                 LinterResult(

@@ -46,7 +46,9 @@ async def test_vulture_scenarios(
 ) -> None:
     """Test various Vulture parsing scenarios."""
     mock_result = AsyncCompletedProcess(stdout=stdout, stderr="", returncode=0)
-    mocker.patch.object(VultureLinter, "_run_command", return_value=mock_result)
+    mocker.patch.object(
+        VultureLinter, "_run_command", return_value=mock_result
+    )
 
     results = await linter.run(Path("target.py"))
 

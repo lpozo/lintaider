@@ -11,7 +11,10 @@ from lintaider.ai.auth import (
     get_env_var_for_provider,
     save_provider_api_key,
 )
-from lintaider.ai.provider import list_provider_models, verify_provider_connection
+from lintaider.ai.provider import (
+    list_provider_models,
+    verify_provider_connection,
+)
 from lintaider.ai.registry import PROVIDER_SPECS, get_provider_spec
 from lintaider.cli.ui import console
 from lintaider.config import Config
@@ -49,7 +52,9 @@ def handle_init() -> None:
         provider, model, api_base, skip_linters, only_linters, verification_ok
     )
     if not click.confirm("Save this configuration?", default=True):
-        console.print("[yellow]Setup cancelled. No changes were saved.[/yellow]")
+        console.print(
+            "[yellow]Setup cancelled. No changes were saved.[/yellow]"
+        )
         return
 
     config.provider = provider
@@ -151,19 +156,25 @@ def _update_provider_api_key(provider: str) -> str | None:
         if existing_key:
             console.print("[dim]Keeping existing API key.[/dim]")
             return existing_key
-        console.print("[yellow]No API key provided. Verification may fail.[/yellow]")
+        console.print(
+            "[yellow]No API key provided. Verification may fail.[/yellow]"
+        )
         return None
 
     backend = save_provider_api_key(provider, api_key)
     if backend == "keychain":
         console.print("[green]Saved API key to OS keychain.[/green]")
     elif backend == ".env":
-        console.print("[green]Saved API key to .env (keychain unavailable).[/green]")
+        console.print(
+            "[green]Saved API key to .env (keychain unavailable).[/green]"
+        )
 
     return api_key
 
 
-def _select_api_base(provider: str, current_api_base: str | None) -> str | None:
+def _select_api_base(
+    provider: str, current_api_base: str | None
+) -> str | None:
     """Prompt the user for an optional API base URL override.
 
     Falls back to the provider's default base URL when no override is given.
@@ -263,7 +274,9 @@ def _select_model(
     )
 
     if not model_candidates:
-        model: str = click.prompt("Model name", default=default_model or "llama3")
+        model: str = click.prompt(
+            "Model name", default=default_model or "llama3"
+        )
         return model.strip()
 
     table = Table(title="Available Models", show_header=True)
@@ -292,7 +305,9 @@ def _select_model(
     return default_model or "llama3"
 
 
-def _validate_and_filter_linters(linter_list: list[str], list_name: str) -> list[str]:
+def _validate_and_filter_linters(
+    linter_list: list[str], list_name: str
+) -> list[str]:
     """Remove unrecognised linter names and warn the user about them.
 
     Args:
@@ -327,7 +342,9 @@ def _select_linter_preferences(config: Config) -> tuple[list[str], list[str]]:
         linter name strings.
     """
     available_linters = sorted(LINTER_MAP.keys())
-    console.print(f"[dim]Available linters: {', '.join(available_linters)}[/dim]")
+    console.print(
+        f"[dim]Available linters: {', '.join(available_linters)}[/dim]"
+    )
 
     skipped_str = click.prompt(
         "Linters to skip by default (comma-separated)",
@@ -369,7 +386,9 @@ def _parse_linter_list(raw: str) -> list[str]:
     """
     if not raw:
         return []
-    normalized = [item.strip().lower() for item in raw.split(",") if item.strip()]
+    normalized = [
+        item.strip().lower() for item in raw.split(",") if item.strip()
+    ]
     # Keep user order while deduplicating.
     return list(dict.fromkeys(normalized))
 
@@ -405,7 +424,10 @@ def _run_connectivity_check(
             )
         )
     except RuntimeError:
-        ok, message = False, "Connectivity check could not run in this environment."
+        ok, message = (
+            False,
+            "Connectivity check could not run in this environment.",
+        )
 
     if ok:
         console.print("[green]Connectivity check passed.[/green]")

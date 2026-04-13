@@ -60,14 +60,18 @@ async def handle_fix(
 
     # Determine target path for context summary
     target_path = target or Path.cwd()
-    with console.status("[dim]Analyzing project context...[/dim]", spinner="dots"):
+    with console.status(
+        "[dim]Analyzing project context...[/dim]", spinner="dots"
+    ):
         project_summary = get_project_summary(target_path)
 
     # Launch AI tasks background orchestration
     ai_tasks = _orchestrate_ai_tasks(ai, results, project_summary)
 
     for idx, result in enumerate(results):
-        await _process_fix_interactive(idx, len(results), result, ai_tasks[idx])
+        await _process_fix_interactive(
+            idx, len(results), result, ai_tasks[idx]
+        )
 
 
 async def _load_scan_results(
@@ -98,13 +102,17 @@ async def _load_scan_results(
 
     try:
         data = json.loads(input_file.read_text(encoding="utf-8"))
-        results: list[LinterResult] = [LinterResult.from_dict(item) for item in data]
+        results: list[LinterResult] = [
+            LinterResult.from_dict(item) for item in data
+        ]
         if not results:
             console.print("[bold green]No issues to fix.[/bold green]")
             return []
         return results
     except (OSError, json.JSONDecodeError) as exc:
-        console.print(f"[bold red]Error reading {input_file}:[/bold red] {exc}")
+        console.print(
+            f"[bold red]Error reading {input_file}:[/bold red] {exc}"
+        )
         return []
 
 
@@ -168,22 +176,38 @@ async def _process_fix_interactive(
     )
 
     if result.snippet_context:
-        formatted = format_snippet(result.snippet_context, result.snippet_start_line)
-        syntax = Syntax(formatted, "python", theme="monokai", line_numbers=False)
-        console.print(Panel(syntax, title="Original Context", border_style="yellow"))
+        formatted = format_snippet(
+            result.snippet_context, result.snippet_start_line
+        )
+        syntax = Syntax(
+            formatted, "python", theme="monokai", line_numbers=False
+        )
+        console.print(
+            Panel(syntax, title="Original Context", border_style="yellow")
+        )
 
-    with console.status("[dim]Asking AI for a solution...[/dim]", spinner="dots"):
+    with console.status(
+        "[dim]Asking AI for a solution...[/dim]", spinner="dots"
+    ):
         proposals = await ai_task
 
     if not proposals:
-        console.print("[red]AI failed to generate solutions for this issue.[/red]")
+        console.print(
+            "[red]AI failed to generate solutions for this issue.[/red]"
+        )
         return
 
     for i, prop in enumerate(proposals, start=1):
         console.print(f"\n[bold green]Option {i}:[/bold green]")
-        console.print(Panel(prop.explanation, border_style="dim", title="AI Reasoning"))
-        syntax = Syntax(prop.code_diff, "python", theme="monokai", line_numbers=False)
-        console.print(Panel(syntax, title="Proposed Fix", border_style="green"))
+        console.print(
+            Panel(prop.explanation, border_style="dim", title="AI Reasoning")
+        )
+        syntax = Syntax(
+            prop.code_diff, "python", theme="monokai", line_numbers=False
+        )
+        console.print(
+            Panel(syntax, title="Proposed Fix", border_style="green")
+        )
 
     choice = await asyncio.to_thread(
         click.prompt,
@@ -207,7 +231,9 @@ async def _process_fix_interactive(
             selected.code_diff,
         )
         if applied:
-            console.print("[bold green]Patch applied successfully![/bold green]\n")
+            console.print(
+                "[bold green]Patch applied successfully![/bold green]\n"
+            )
         else:
             console.print(
                 "[bold yellow]Could not apply patch accurately. "
@@ -260,7 +286,9 @@ def _apply_patch(
             search_start_line = max(0, start_idx - window_lines)
             search_end_line = min(len(lines), end_idx + window_lines)
 
-            search_start_char = content.find("\n".join(lines[:search_start_line]))
+            search_start_char = content.find(
+                "\n".join(lines[:search_start_line])
+            )
             if search_start_char == -1:
                 search_start_char = 0
             search_end_char = content.find("\n".join(lines[:search_end_line]))
@@ -277,7 +305,9 @@ def _apply_patch(
             )
 
             if match.size < len(target_snippet) * 0.7:
-                matcher = difflib.SequenceMatcher(None, content, target_snippet)
+                matcher = difflib.SequenceMatcher(
+                    None, content, target_snippet
+                )
                 match = matcher.find_longest_match(
                     0, len(content), 0, len(target_snippet)
                 )

@@ -1,4 +1,5 @@
 """Base classes and interfaces for AI providers."""
+
 import abc
 from dataclasses import dataclass
 from pathlib import Path
@@ -58,7 +59,9 @@ class BaseAIProvider(abc.ABC):
         """
         # Use absolute path relative to this file's parent (ai/)
         prompts_dir = Path(__file__).parent / "prompts"
-        system_prompt = (prompts_dir / "system.txt").read_text(encoding="utf-8")
+        system_prompt = (prompts_dir / "system.txt").read_text(
+            encoding="utf-8"
+        )
         user_template = (prompts_dir / "user.txt").read_text(encoding="utf-8")
 
         # Format project context
@@ -89,7 +92,9 @@ class BaseAIProvider(abc.ABC):
                 "if this code is called dynamically or via frameworks."
             )
         elif result.linter_name.lower() == "pylint":
-            linter_advice = "Note: Pylint checks for code smells and PEP8 violations."
+            linter_advice = (
+                "Note: Pylint checks for code smells and PEP8 violations."
+            )
 
         user_prompt = user_template.format(
             file_path=result.file_path,
@@ -122,9 +127,14 @@ class BaseAIProvider(abc.ABC):
             if (
                 str(sym.file_path) in str(result.file_path)
                 or sym.name in result.message
-                or (result.semantic_context and sym.name in result.semantic_context)
+                or (
+                    result.semantic_context
+                    and sym.name in result.semantic_context
+                )
             ):
-                relevant.append(f"- {sym.name} ({sym.kind}) in {sym.file_path}")
+                relevant.append(
+                    f"- {sym.name} ({sym.kind}) in {sym.file_path}"
+                )
 
         # Limit to top 15 relevant symbols
         if not relevant:

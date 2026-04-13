@@ -76,7 +76,9 @@ def scan(  # vulture: ignore
 
 
 @main.command()
-@click.argument("target", type=click.Path(exists=True, path_type=Path), required=False)
+@click.argument(
+    "target", type=click.Path(exists=True, path_type=Path), required=False
+)
 @click.option(
     "-i",
     "--input",

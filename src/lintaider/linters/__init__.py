@@ -26,7 +26,9 @@ def _discover_linters() -> dict[str, type[BaseLinter]]:
             continue
 
         try:
-            module = importlib.import_module(f"lintaider.linters.{module_name}")
+            module = importlib.import_module(
+                f"lintaider.linters.{module_name}"
+            )
             for attr_name in dir(module):
                 attr = getattr(module, attr_name)
                 if (

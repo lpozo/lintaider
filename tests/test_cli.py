@@ -14,7 +14,9 @@ from lintaider.linters.result import LinterResult
 @pytest.fixture
 def mock_config(mocker):
     """Fixture to mock Config.load with defaults."""
-    return mocker.patch("lintaider.cli.init_handler.Config.load", return_value=Config())
+    return mocker.patch(
+        "lintaider.cli.init_handler.Config.load", return_value=Config()
+    )
 
 
 def test_cli_scan_no_issues(mocker, tmp_path, mock_config) -> None:
@@ -61,7 +63,9 @@ def test_cli_scan_with_issues(mocker, tmp_path, mock_config) -> None:
     )
 
     output_file = tmp_path / "scan-result.json"
-    result = runner.invoke(main, ["scan", str(test_file), "--output", str(output_file)])
+    result = runner.invoke(
+        main, ["scan", str(test_file), "--output", str(output_file)]
+    )
 
     assert result.exit_code == 0
     assert "Findings Summary" in result.output
@@ -106,7 +110,13 @@ def test_cli_scan_human_readable_generates_markdown(
     with runner.isolated_filesystem(temp_dir=tmp_path):
         result = runner.invoke(
             main,
-            ["scan", str(test_file), "--output", str(output_file), "--human-readable"],
+            [
+                "scan",
+                str(test_file),
+                "--output",
+                str(output_file),
+                "--human-readable",
+            ],
         )
 
         assert result.exit_code == 0
@@ -124,7 +134,9 @@ def test_cli_scan_human_readable_generates_markdown(
         assert "A test error" in content
 
 
-def test_cli_scan_human_readable_short_flag(mocker, tmp_path, mock_config) -> None:
+def test_cli_scan_human_readable_short_flag(
+    mocker, tmp_path, mock_config
+) -> None:
     """Test that -r also generates linting-report.md."""
     from pathlib import Path
 
@@ -170,14 +182,18 @@ def test_cli_fix_with_issue_skip(mocker, tmp_path, mock_config) -> None:
     )
 
     input_file = tmp_path / "scan-result.json"
-    input_file.write_text(json.dumps([fake_result.to_dict()]), encoding="utf-8")
+    input_file.write_text(
+        json.dumps([fake_result.to_dict()]), encoding="utf-8"
+    )
 
     proposal = AIFixProposal(explanation="Fix", code_diff="import good")
     mocker.patch(
         "lintaider.cli.fix_handler.create_ai_provider",
     ).return_value.generate_fixes = AsyncMock(return_value=[proposal])
 
-    result = runner.invoke(main, ["fix", "--input", str(input_file)], input="s\n")
+    result = runner.invoke(
+        main, ["fix", "--input", str(input_file)], input="s\n"
+    )
 
     assert result.exit_code == 0
     assert "Option 1" in result.output
@@ -212,7 +228,8 @@ def test_cli_scan_verbose(mocker, tmp_path, mock_config) -> None:
 
     output_file = tmp_path / "scan-result.json"
     result = runner.invoke(
-        main, ["scan", str(test_file), "--output", str(output_file), "--verbose"]
+        main,
+        ["scan", str(test_file), "--output", str(output_file), "--verbose"],
     )
 
     assert result.exit_code == 0
@@ -249,7 +266,12 @@ def test_cli_scan_skip_filter(mocker, tmp_path, mock_config) -> None:
 
     runner.invoke(
         main,
-        ["scan", str(test_file), "--skip", "ruff,pylint,bandit,mypy,pyright,semgrep"],
+        [
+            "scan",
+            str(test_file),
+            "--skip",
+            "ruff,pylint,bandit,mypy,pyright,semgrep",
+        ],
     )
 
     args, kwargs = mock_engine.call_args
@@ -269,9 +291,12 @@ def test_cli_init_command(mocker, tmp_path) -> None:
 
     config = Config()
     mocker.patch("lintaider.cli.init_handler.Config.load", return_value=config)
-    mocker.patch("lintaider.cli.init_handler.list_provider_models", return_value=[])
     mocker.patch(
-        "lintaider.cli.init_handler.save_provider_api_key", return_value="keychain"
+        "lintaider.cli.init_handler.list_provider_models", return_value=[]
+    )
+    mocker.patch(
+        "lintaider.cli.init_handler.save_provider_api_key",
+        return_value="keychain",
     )
     mock_save = mocker.patch.object(Config, "save")
 
@@ -447,11 +472,15 @@ def test_init_helper_update_provider_api_key_cloud(mocker) -> None:
     from lintaider.cli.init_handler import _update_provider_api_key
 
     mocker.patch(
-        "lintaider.cli.init_handler.get_api_key_for_provider", return_value=None
+        "lintaider.cli.init_handler.get_api_key_for_provider",
+        return_value=None,
     )
-    mocker.patch("lintaider.cli.init_handler.click.prompt", return_value="sk-test123")
     mocker.patch(
-        "lintaider.cli.init_handler.save_provider_api_key", return_value="keychain"
+        "lintaider.cli.init_handler.click.prompt", return_value="sk-test123"
+    )
+    mocker.patch(
+        "lintaider.cli.init_handler.save_provider_api_key",
+        return_value="keychain",
     )
 
     result = _update_provider_api_key("openai")
@@ -515,7 +544,9 @@ def test_init_helper_select_provider_by_name(mocker) -> None:
     """Test provider selection by entering provider name."""
     from lintaider.cli.init_handler import _select_provider
 
-    mocker.patch("lintaider.cli.init_handler.click.prompt", return_value="openai")
+    mocker.patch(
+        "lintaider.cli.init_handler.click.prompt", return_value="openai"
+    )
 
     result = _select_provider("ollama")
     assert result == "openai"

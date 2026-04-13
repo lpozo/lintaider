@@ -64,7 +64,9 @@ class PylintLinter(BaseLinter):
             line_end = error.get("endLine")
             col_end = error.get("endColumn")
 
-            error_code = error.get("message-id", error.get("symbol", "Unknown"))
+            error_code = error.get(
+                "message-id", error.get("symbol", "Unknown")
+            )
             message = error.get("message", "Unknown error")
 
             raw_snippet, snippet_start, semantic_info = get_linter_context(

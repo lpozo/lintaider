@@ -25,8 +25,12 @@ class MockLinter(BaseLinter):
 @pytest.mark.asyncio
 async def test_engine_run_all() -> None:
     """Test that the engine combines results from multiple linters."""
-    res1 = LinterResult(Path("x.py"), 1, None, None, None, "L1", "E1", "Msg1", "")
-    res2 = LinterResult(Path("y.py"), 2, None, None, None, "L2", "E2", "Msg2", "")
+    res1 = LinterResult(
+        Path("x.py"), 1, None, None, None, "L1", "E1", "Msg1", ""
+    )
+    res2 = LinterResult(
+        Path("y.py"), 2, None, None, None, "L2", "E2", "Msg2", ""
+    )
 
     mock_linter1 = MockLinter("Linter1", [res1])
     mock_linter2 = MockLinter("Linter2", [res1, res2])
