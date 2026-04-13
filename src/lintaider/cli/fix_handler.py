@@ -13,7 +13,7 @@ from lintaider.ai import AIFixProposal, create_ai_provider
 from lintaider.cli.scan_handler import handle_scan
 from lintaider.cli.ui import console
 from lintaider.config import Config
-from lintaider.linters.context import format_snippet
+from lintaider.linters.context import ProjectSummary, format_snippet, get_project_summary
 from lintaider.linters.result import LinterResult
 
 
@@ -75,18 +75,30 @@ async def handle_fix(
     # Logical Sort: by file then line
     results.sort(key=lambda r: (str(r.file_path), r.line_start))
 
+    # Determine target path for context summary
+    target_path = target or Path.cwd()
+    if not results and target:
+        # handle_scan already handled it if results are empty after scan
+        pass
+
+    with console.status("[dim]Analyzing project context...[/dim]", spinner="dots"):
+        project_summary = get_project_summary(target_path)
+
     # Background AI Task Orchestration with Rate Limiting
     ai_semaphore = asyncio.Semaphore(1)
 
-    async def _wrapped_generate_fixes(res: LinterResult) -> list[AIFixProposal]:
+    async def _wrapped_generate_fixes(
+        res: LinterResult, summary: ProjectSummary
+    ) -> list[AIFixProposal]:
         async with ai_semaphore:
-            fixes = await ai.generate_fixes(res)
+            fixes = await ai.generate_fixes(res, summary)
             await asyncio.sleep(0.5)
             return fixes
 
     # Launch all AI tasks immediately in the background
     ai_tasks = [
-        asyncio.create_task(_wrapped_generate_fixes(result)) for result in results
+        asyncio.create_task(_wrapped_generate_fixes(result, project_summary))
+        for result in results
     ]
 
     for idx, result in enumerate(results):
@@ -134,14 +146,10 @@ async def _process_fix_interactive(
         return
 
     for i, prop in enumerate(proposals, start=1):
+        console.print(f"\n[bold green]Option {i}:[/bold green]")
+        console.print(Panel(prop.explanation, border_style="dim", title="AI Reasoning"))
         syntax = Syntax(prop.code_diff, "python", theme="monokai", line_numbers=False)
-        console.print(
-            Panel(
-                syntax,
-                title=f"Option {i}: {prop.explanation}",
-                border_style="green",
-            )
-        )
+        console.print(Panel(syntax, title="Proposed Fix", border_style="green"))
 
     choice = await asyncio.to_thread(
         click.prompt,

@@ -10,6 +10,7 @@ from litellm import acompletion
 from lintaider.ai.auth import get_api_key_for_provider
 from lintaider.ai.base import AIFixProposal, BaseAIProvider
 from lintaider.ai.registry import get_provider_spec
+from lintaider.linters.context import ProjectSummary
 from lintaider.linters.result import LinterResult
 
 if TYPE_CHECKING:
@@ -45,16 +46,21 @@ class LiteLLMProvider(BaseAIProvider):
         self.api_base = api_base
         self.api_key = api_key
 
-    async def generate_fixes(self, linter_result: LinterResult) -> list[AIFixProposal]:
+    async def generate_fixes(
+        self,
+        linter_result: LinterResult,
+        project_summary: ProjectSummary | None = None,
+    ) -> list[AIFixProposal]:
         """Request fixes using LiteLLM asynchronously.
 
         Args:
             linter_result: The linter result to fix.
+            project_summary: Optional project summary for additional context.
 
         Returns:
             A list of AI-generated fix proposals.
         """
-        system_prompt, user_prompt = self._get_prompts(linter_result)
+        system_prompt, user_prompt = self._get_prompts(linter_result, project_summary)
 
         try:
             # LiteLLM manages API keys from environment variables automatically
