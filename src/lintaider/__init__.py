@@ -1,1 +1,1 @@
-"""LintAIder — AI-assisted code auditing and auto-fix CLI for Python projects."""
+"""LintAIder — AI-assisted code audit and auto-fix CLI for Python projects."""

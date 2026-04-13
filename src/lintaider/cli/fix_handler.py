@@ -43,10 +43,12 @@ async def handle_fix(
 
     config = Config.load()
     console.print(
-        f"[bold blue]Loaded {len(results)} issues from {input_file}[/bold blue]"
+        f"[bold blue]Loaded {len(results)} issues from "
+        f"{input_file}[/bold blue]"
     )
     console.print(
-        f"[dim]Using configured provider: {config.provider}:{config.model}[/dim]"
+        f"[dim]Using configured provider: "
+        f"{config.provider}:{config.model}[/dim]"
     )
 
     try:
@@ -77,11 +79,13 @@ async def handle_fix(
 async def _load_scan_results(
     input_file: Path, target: Path | None
 ) -> list[LinterResult]:
-    """Load scan results from disk, triggering an auto-scan if the file is missing.
+    """Load scan results from disk, auto-scanning if the file is missing.
 
     Args:
-        input_file: Path to the JSON results file produced by ``lintaider scan``.
-        target: Optional file or directory to scan when ``input_file`` is absent.
+        input_file: Path to the JSON results file produced by
+            ``lintaider scan``.
+        target: Optional file or directory to scan when
+            ``input_file`` is absent.
 
     Returns:
         A list of ``LinterResult`` objects, or an empty list on any failure.
@@ -96,7 +100,8 @@ async def _load_scan_results(
         else:
             console.print(
                 f"[bold red]Error:[/bold red] {input_file} not found.\n"
-                "Please provide a target to scan: [bold]lintaider fix <target>[/bold]"
+                "Please provide a target to scan: "
+                "[bold]lintaider fix <target>[/bold]"
             )
             return []
 

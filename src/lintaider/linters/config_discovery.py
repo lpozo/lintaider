@@ -51,7 +51,8 @@ def get_bundled_config_path(linter_name: str, category: str) -> Path | None:
             filename
         )
         # We need an actual file path.
-        # If it's a real file (not in zip), .resolve() gives us the absolute path.
+        # If it's a real file (not in zip), .resolve() gives
+        # us the absolute path.
         if resource_path.is_file():
             # In local development and most installations, it's a real file.
             return Path(str(resource_path))
@@ -64,7 +65,7 @@ def get_bundled_config_path(linter_name: str, category: str) -> Path | None:
 def find_nearest_local_config(
     target: Path, filenames: list[str], linter_name: str | None = None
 ) -> Path | None:
-    """Search for the nearest local config file walking up to project root (CWD).
+    """Search upward for the nearest local config file up to the project root.
 
     Args:
         target: The file or directory to scan.
@@ -85,7 +86,8 @@ def find_nearest_local_config(
         for filename in filenames:
             candidate = curr / filename
             if candidate.exists():
-                # Special check for pyproject.toml: it must contain the linter section
+                # Special check for pyproject.toml: it must contain
+                # the linter section
                 if filename == "pyproject.toml" and linter_name:
                     if _has_linter_section(candidate, linter_name):
                         return candidate

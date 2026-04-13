@@ -95,7 +95,8 @@ async def handle_scan(  # pylint: disable=too-many-arguments,too-many-positional
         )
 
     console.print(
-        "[dim]Run 'lintaider fix' to get AI suggestions and apply patches.[/dim]"
+        "[dim]Run 'lintaider fix' to get AI suggestions "
+        "and apply patches.[/dim]"
     )
 
 

@@ -39,7 +39,8 @@ class LiteLLMProvider(BaseAIProvider):
 
         Args:
             model: The name of the model to use.
-            api_base: Optional base URL for the model API (required for local/private).
+                api_base: Optional base URL for the model API (required for
+                    local/private).
             api_key: Optional API key override for cloud providers.
         """
         self.model = model
@@ -270,8 +271,10 @@ def list_provider_models(
     to manual model entry or recommended models.
 
     Args:
-        provider_name: The provider to query (e.g., ``"ollama"``, ``"openai"``).
-        api_base: Optional base URL override (useful for self-hosted providers).
+        provider_name: The provider to query (e.g., ``"ollama"``,
+            ``"openai"``).
+        api_base: Optional base URL override (useful for self-hosted
+            providers).
         api_key: Optional API key override; falls back to environment/keyring.
 
     Returns:

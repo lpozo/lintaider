@@ -73,7 +73,8 @@ def handle_init() -> None:
         Panel(
             f"Provider: [bold]{config.provider}[/bold]\n"
             f"Model: [bold]{config.model}[/bold]\n"
-            f"API Base: [bold]{config.api_base or 'Default'}[/bold]{storage_note}",
+            f"API Base: [bold]{config.api_base or 'Default'}"
+            f"[/bold]{storage_note}",
             title="Configuration Saved to lintaider.toml",
             border_style="green",
         )
@@ -240,7 +241,8 @@ def _build_model_candidates(
     elif provider_spec and provider_spec.recommended_models:
         candidates.extend(provider_spec.recommended_models)
         console.print(
-            "[yellow]Could not fetch models. Showing recommended options.[/yellow]"
+            "[yellow]Could not fetch models. "
+            "Showing recommended options.[/yellow]"
         )
 
     if default_model and default_model not in candidates:
@@ -375,7 +377,7 @@ def _select_linter_preferences(config: Config) -> tuple[list[str], list[str]]:
 
 
 def _parse_linter_list(raw: str) -> list[str]:
-    """Normalise a comma-separated string into a deduplicated list of linter names.
+    """Normalise a comma-separated string into a deduplicated linter list.
 
     Args:
         raw: Comma-separated linter names as entered by the user.
@@ -449,7 +451,8 @@ def _print_summary(  # pylint: disable=too-many-arguments,too-many-positional-ar
     Args:
         provider: The selected provider identifier.
         model: The selected model name.
-        api_base: The selected API base URL, or ``None`` for the provider default.
+        api_base: The selected API base URL, or ``None`` for the
+            provider default.
         skip_linters: Linter names to skip by default.
         only_linters: Linter names to run exclusively by default.
         verification_ok: Whether the connectivity check passed.

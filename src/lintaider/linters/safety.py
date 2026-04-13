@@ -59,11 +59,15 @@ class SafetyLinter(BaseLinter):
             advisory = vuln.get("advisory", "No details available.")
             severity = vuln.get("severity") or "UNKNOWN"
 
-            # Suppress unresolvable protobuf vulnerability blocked by dependency tree
+            # Suppress unresolvable protobuf vulnerability blocked
+            # by dependency tree
             if cve == "CVE-2026-0994":
                 continue
 
-            message = f"[{severity}] {package_name}=={version} (CVE: {cve}) — {advisory}"
+            message = (
+                f"[{severity}] {package_name}=={version} "
+                f"(CVE: {cve}) — {advisory}"
+            )
 
             parsed_results.append(
                 LinterResult(

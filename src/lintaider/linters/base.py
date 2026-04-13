@@ -49,7 +49,8 @@ class BaseLinter(abc.ABC):
         """Parse process output into standardized linter results.
 
         Args:
-            process_result: The completed process with stdout, stderr, and return code.
+            process_result: The completed process with stdout, stderr,
+                and return code.
             target: The file or directory that was linted.
 
         Returns:

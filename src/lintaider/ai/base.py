@@ -13,7 +13,8 @@ class AIFixProposal:
     """A proposed fix from the AI.
 
     Attributes:
-        explanation: A human-readable explanation of why this fix is recommended.
+        explanation: A human-readable explanation of why this fix is
+            recommended.
         code_diff: A unified-style diff representing the proposed changes.
     """
 
@@ -37,7 +38,8 @@ class BaseAIProvider(abc.ABC):
 
         Args:
             linter_result: The linter error/warning to fix.
-            project_summary: Optional summary of the target project for context.
+            project_summary: Optional summary of the target project for
+                context.
 
         Returns:
             A list of AI-generated fix proposals.
@@ -88,7 +90,8 @@ class BaseAIProvider(abc.ABC):
         # Add general linter advice
         if result.linter_name.lower() == "vulture":
             linter_advice = (
-                "Note: Vulture detects unused code. Be cautious of false positives "
+                "Note: Vulture detects unused code. "
+                "Be cautious of false positives "
                 "if this code is called dynamically or via frameworks."
             )
         elif result.linter_name.lower() == "pylint":
@@ -123,7 +126,8 @@ class BaseAIProvider(abc.ABC):
         """
         relevant = []
         for sym in symbols:
-            # If it's in the same file or mentioned in the message/semantic context
+            # If it's in the same file or mentioned in the
+            # message/semantic context
             if (
                 str(sym.file_path) in str(result.file_path)
                 or sym.name in result.message

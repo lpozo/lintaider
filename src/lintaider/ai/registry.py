@@ -8,7 +8,8 @@ class ProviderSpec:  # pylint: disable=too-many-instance-attributes
     """Declarative metadata for a supported AI provider.
 
     Attributes:
-        provider_id: Lowercase identifier used in config and CLI (e.g., ``"openai"``).
+        provider_id: Lowercase identifier used in config and CLI (e.g.,
+            ``"openai"``).
         display_name: Human-readable name shown in the setup wizard.
         env_var: Environment variable that holds the API key, or ``None`` for
             local providers that do not require authentication.
