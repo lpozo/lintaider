@@ -637,7 +637,7 @@ def test_scan_reporter_write_json_report(tmp_path, fake_result) -> None:
 
 
 def test_scan_reporter_write_json_report_empty(tmp_path) -> None:
-    """write_json_report writes an empty JSON array when there are no results."""
+    """write_json_report writes an empty array when there are no results."""
     import json
 
     from lintaider.cli.scan_handler import ScanReporter
@@ -661,8 +661,9 @@ def test_scan_reporter_write_human_readable_report(
     reporter = ScanReporter([fake_result], tmp_path, output)
 
     import os
+    from pathlib import Path
 
-    old_cwd = os.getcwd()
+    old_cwd = Path.cwd()
     try:
         os.chdir(tmp_path)
         reporter.write_human_readable_report()
