@@ -596,3 +596,174 @@ def test_init_helper_select_provider_by_name(mocker) -> None:
 
     result = builder._prompt_provider()
     assert result == "openai"
+
+
+# ---------------------------------------------------------------------------
+# ScanReporter unit tests
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def fake_result(tmp_path) -> LinterResult:
+    """A single LinterResult for use in ScanReporter tests."""
+    return LinterResult(
+        file_path=tmp_path / "sample.py",
+        line_start=5,
+        line_end=5,
+        col_start=1,
+        col_end=10,
+        linter_name="TestLinter",
+        error_code="T001",
+        message="Something wrong",
+        snippet_context="bad_code()",
+    )
+
+
+def test_scan_reporter_write_json_report(tmp_path, fake_result) -> None:
+    """write_json_report saves results as valid JSON to the output path."""
+    import json
+
+    from lintaider.cli.scan_handler import ScanReporter
+
+    output = tmp_path / "out.json"
+    reporter = ScanReporter([fake_result], tmp_path, output)
+    reporter.write_json_report()
+
+    assert output.exists()
+    data = json.loads(output.read_text(encoding="utf-8"))
+    assert len(data) == 1
+    assert data[0]["linter_name"] == "TestLinter"
+    assert data[0]["error_code"] == "T001"
+
+
+def test_scan_reporter_write_json_report_empty(tmp_path) -> None:
+    """write_json_report writes an empty JSON array when there are no results."""
+    import json
+
+    from lintaider.cli.scan_handler import ScanReporter
+
+    output = tmp_path / "out.json"
+    reporter = ScanReporter([], tmp_path, output)
+    reporter.write_json_report()
+
+    assert output.exists()
+    data = json.loads(output.read_text(encoding="utf-8"))
+    assert data == []
+
+
+def test_scan_reporter_write_human_readable_report(
+    tmp_path, fake_result
+) -> None:
+    """write_human_readable_report writes a markdown file in the cwd."""
+    from lintaider.cli.scan_handler import ScanReporter
+
+    output = tmp_path / "out.json"
+    reporter = ScanReporter([fake_result], tmp_path, output)
+
+    import os
+
+    old_cwd = os.getcwd()
+    try:
+        os.chdir(tmp_path)
+        reporter.write_human_readable_report()
+    finally:
+        os.chdir(old_cwd)
+
+    report = tmp_path / "linting-report.md"
+    assert report.exists()
+    content = report.read_text(encoding="utf-8")
+    assert "# Linting Report" in content
+    assert "TestLinter" in content
+    assert "Something wrong" in content
+
+
+def test_scan_reporter_build_markdown_no_results(tmp_path) -> None:
+    """_build_markdown_report with no results shows 'No issues found'."""
+    from lintaider.cli.scan_handler import ScanReporter
+
+    reporter = ScanReporter([], tmp_path, tmp_path / "out.json")
+    md = reporter._build_markdown_report()
+
+    assert "# Linting Report" in md
+    assert "No issues found" in md
+    assert "| None | 0 |" in md
+
+
+def test_scan_reporter_build_markdown_with_results(
+    tmp_path, fake_result
+) -> None:
+    """_build_markdown_report includes linter name, code, and message."""
+    from lintaider.cli.scan_handler import ScanReporter
+
+    reporter = ScanReporter([fake_result], tmp_path, tmp_path / "out.json")
+    md = reporter._build_markdown_report()
+
+    assert "TestLinter" in md
+    assert "T001" in md
+    assert "Something wrong" in md
+    assert "bad_code()" in md
+
+
+def test_scan_reporter_write_summary_report(tmp_path, fake_result) -> None:
+    """write_summary_report prints the findings table."""
+    from lintaider.cli.scan_handler import ScanReporter
+
+    output = tmp_path / "out.json"
+    reporter = ScanReporter([fake_result], tmp_path, output)
+
+    # Should not raise; Rich output is captured by the console
+    reporter.write_summary_report()
+
+
+def test_scan_reporter_write_summary_report_verbose(
+    tmp_path, fake_result
+) -> None:
+    """write_summary_report with verbose=True prints per-issue panels."""
+    from io import StringIO
+
+    from rich.console import Console
+
+    from lintaider.cli.scan_handler import ScanReporter
+
+    output = tmp_path / "out.json"
+    reporter = ScanReporter([fake_result], tmp_path, output)
+
+    buf = StringIO()
+    import lintaider.cli.scan_handler as sh
+
+    original_console = sh.console
+    sh.console = Console(file=buf, highlight=False)
+    try:
+        reporter.write_summary_report(verbose=True)
+    finally:
+        sh.console = original_console
+
+    text = buf.getvalue()
+    assert "Issue 1/1" in text
+    assert "T001" in text
+    assert "Something wrong" in text
+    assert "bad_code()" in text
+
+
+def test_scan_reporter_print_fix_hint(tmp_path) -> None:
+    """print_fix_hint prints the lintaider fix hint."""
+    from io import StringIO
+
+    from rich.console import Console
+
+    from lintaider.cli.scan_handler import ScanReporter
+
+    output = tmp_path / "out.json"
+    reporter = ScanReporter([], tmp_path, output)
+
+    buf = StringIO()
+    import lintaider.cli.scan_handler as sh
+
+    original_console = sh.console
+    sh.console = Console(file=buf, highlight=False)
+    try:
+        reporter.print_fix_hint()
+    finally:
+        sh.console = original_console
+
+    assert "lintaider fix" in buf.getvalue()
