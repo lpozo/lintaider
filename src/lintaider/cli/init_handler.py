@@ -21,6 +21,61 @@ from lintaider.config import Config
 from lintaider.linters import LINTER_MAP
 
 
+def handle_init() -> None:
+    """Execute the interactive initialization flow."""
+    config = Config.load()
+    builder = ConfigBuilder(config)
+
+    console.print("[bold]LintAIder Setup Wizard[/bold]\n")
+
+    builder.select_provider()
+    if builder.provider is None:
+        raise ValueError("Provider selection did not produce a value")
+    provider_spec = get_provider_spec(builder.provider)
+
+    builder.update_provider_api_key()
+    builder.select_api_base()
+    builder.select_model()
+    builder.select_linter_preferences()
+
+    should_verify = click.confirm(
+        "Run a connectivity check now?",
+        default=True,
+    )
+    verification_ok = False
+    if should_verify:
+        with console.status("[dim]Checking provider connectivity...[/dim]"):
+            verification_ok = builder.verify_connection()
+
+    builder.print_summary(verification_ok)
+    if not click.confirm("Save this configuration?", default=True):
+        console.print(
+            "[yellow]Setup cancelled. No changes were saved.[/yellow]"
+        )
+        return
+
+    built_config = builder.build()
+    built_config.save()
+
+    storage_note = ""
+    if builder.provider is None:
+        raise ValueError("Provider must be set before storing config")
+    if provider_spec and provider_spec.requires_api_key:
+        env_var = get_env_var_for_provider(builder.provider)
+        storage_note = f"\nKey Source: [bold]{env_var or 'configured'}[/bold]"
+
+    console.print(
+        Panel(
+            f"Provider: [bold]{built_config.provider}[/bold]\n"
+            f"Model: [bold]{built_config.model}[/bold]\n"
+            f"API Base: [bold]{built_config.api_base or 'Default'}"
+            f"[/bold]{storage_note}",
+            title="Configuration Saved to lintaider.toml",
+            border_style="green",
+        )
+    )
+
+
 class ConfigBuilder:
     """Interactive builder for configuration via CLI prompts."""
 
@@ -399,58 +454,3 @@ class ConfigBuilder:
                 border_style="cyan",
             )
         )
-
-
-def handle_init() -> None:
-    """Execute the interactive initialization flow."""
-    config = Config.load()
-    builder = ConfigBuilder(config)
-
-    console.print("[bold]LintAIder Setup Wizard[/bold]\n")
-
-    builder.select_provider()
-    if builder.provider is None:
-        raise ValueError("Provider selection did not produce a value")
-    provider_spec = get_provider_spec(builder.provider)
-
-    builder.update_provider_api_key()
-    builder.select_api_base()
-    builder.select_model()
-    builder.select_linter_preferences()
-
-    should_verify = click.confirm(
-        "Run a connectivity check now?",
-        default=True,
-    )
-    verification_ok = False
-    if should_verify:
-        with console.status("[dim]Checking provider connectivity...[/dim]"):
-            verification_ok = builder.verify_connection()
-
-    builder.print_summary(verification_ok)
-    if not click.confirm("Save this configuration?", default=True):
-        console.print(
-            "[yellow]Setup cancelled. No changes were saved.[/yellow]"
-        )
-        return
-
-    built_config = builder.build()
-    built_config.save()
-
-    storage_note = ""
-    if builder.provider is None:
-        raise ValueError("Provider must be set before storing config")
-    if provider_spec and provider_spec.requires_api_key:
-        env_var = get_env_var_for_provider(builder.provider)
-        storage_note = f"\nKey Source: [bold]{env_var or 'configured'}[/bold]"
-
-    console.print(
-        Panel(
-            f"Provider: [bold]{built_config.provider}[/bold]\n"
-            f"Model: [bold]{built_config.model}[/bold]\n"
-            f"API Base: [bold]{built_config.api_base or 'Default'}"
-            f"[/bold]{storage_note}",
-            title="Configuration Saved to lintaider.toml",
-            border_style="green",
-        )
-    )
