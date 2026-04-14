@@ -172,7 +172,9 @@ class ConfigBuilder:
             if existing_key
             else f"Enter {env_var}"
         )
-        api_key: str = click.prompt(prompt, default="", hide_input=True).strip()
+        api_key: str = click.prompt(
+            prompt, default="", hide_input=True
+        ).strip()
 
         if not api_key:
             if existing_key:
@@ -323,7 +325,9 @@ class ConfigBuilder:
                 "[yellow]Removing linters present in both skip and only:[/yellow] "
                 + ", ".join(overlap)
             )
-            skip_linters = [name for name in skip_linters if name not in overlap]
+            skip_linters = [
+                name for name in skip_linters if name not in overlap
+            ]
 
         return skip_linters, only_linters
 
@@ -349,7 +353,9 @@ class ConfigBuilder:
         if ok:
             console.print("[green]Connectivity check passed.[/green]")
         else:
-            console.print(f"[yellow]Connectivity check failed:[/yellow] {message}")
+            console.print(
+                f"[yellow]Connectivity check failed:[/yellow] {message}"
+            )
         return ok
 
     def _display_summary(self, verification_ok: bool) -> None:
@@ -430,112 +436,3 @@ def handle_init() -> None:
             border_style="green",
         )
     )
-
-
-# Backward-compatible wrapper functions
-
-def _select_provider(current_provider: str) -> str:
-    """Wrapper for backward compatibility - delegates to ConfigBuilder."""
-    config = Config(provider=current_provider)
-    builder = ConfigBuilder(config)
-    return builder._prompt_provider()
-
-
-def _update_provider_api_key(provider: str) -> str | None:
-    """Wrapper for backward compatibility - delegates to ConfigBuilder."""
-    config = Config(provider=provider)
-    builder = ConfigBuilder(config)
-    builder.provider = provider
-    return builder._prompt_api_key()
-
-
-def _select_api_base(
-    provider: str, current_api_base: str | None
-) -> str | None:
-    """Wrapper for backward compatibility - delegates to ConfigBuilder."""
-    config = Config(provider=provider, api_base=current_api_base)
-    builder = ConfigBuilder(config)
-    builder.provider = provider
-    return builder._prompt_api_base()
-
-
-def _build_model_candidates(
-    provider: str,
-    current_model: str,
-    api_base: str | None,
-    api_key: str | None,
-) -> tuple[list[str], str]:
-    """Wrapper for backward compatibility - delegates to ConfigBuilder."""
-    config = Config(provider=provider, model=current_model, api_base=api_base)
-    builder = ConfigBuilder(config)
-    builder.provider = provider
-    builder.api_base = api_base
-    builder.api_key = api_key
-    return builder._build_model_candidates()
-
-
-def _select_model(
-    provider: str,
-    current_model: str,
-    api_base: str | None,
-    api_key: str | None,
-) -> str:
-    """Wrapper for backward compatibility - delegates to ConfigBuilder."""
-    config = Config(provider=provider, model=current_model, api_base=api_base)
-    builder = ConfigBuilder(config)
-    builder.provider = provider
-    builder.api_base = api_base
-    builder.api_key = api_key
-    return builder._prompt_model()
-
-
-def _validate_and_filter_linters(
-    linter_list: list[str], list_name: str
-) -> list[str]:
-    """Wrapper for backward compatibility - delegates to ConfigBuilder."""
-    config = Config()
-    builder = ConfigBuilder(config)
-    return builder._validate_and_filter_linters(linter_list, list_name)
-
-
-def _select_linter_preferences(config: Config) -> tuple[list[str], list[str]]:
-    """Wrapper for backward compatibility - delegates to ConfigBuilder."""
-    builder = ConfigBuilder(config)
-    return builder._prompt_linter_preferences()
-
-
-def _parse_linter_list(raw: str) -> list[str]:
-    """Wrapper for backward compatibility - delegates to ConfigBuilder."""
-    config = Config()
-    builder = ConfigBuilder(config)
-    return builder._parse_linter_list(raw)
-
-
-def _run_connectivity_check(
-    provider: str,
-    model: str,
-    api_base: str | None,
-    api_key: str | None,
-) -> bool:
-    """Wrapper for backward compatibility - delegates to ConfigBuilder."""
-    config = Config(provider=provider, model=model, api_base=api_base)
-    builder = ConfigBuilder(config)
-    builder.provider = provider
-    builder.model = model
-    builder.api_base = api_base
-    builder.api_key = api_key
-    return builder._run_connectivity_check()
-
-
-def _print_summary(
-    config: Config,
-    verification_ok: bool,
-) -> None:
-    """Wrapper for backward compatibility - delegates to ConfigBuilder."""
-    builder = ConfigBuilder(config)
-    builder.config.provider = config.provider
-    builder.config.model = config.model
-    builder.config.api_base = config.api_base
-    builder.config.skip_linters = config.skip_linters
-    builder.config.only_linters = config.only_linters
-    builder._display_summary(verification_ok)

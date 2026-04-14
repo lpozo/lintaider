@@ -336,73 +336,78 @@ def test_cli_apply_patch_fuzzy(tmp_path) -> None:
 
 def test_init_helper_parse_linter_list() -> None:
     """Test linter list parsing helper."""
-    from lintaider.cli.init_handler import _parse_linter_list
+    from lintaider.cli.init_handler import ConfigBuilder
+
+    builder = ConfigBuilder(Config())
 
     # Normal case
-    result = _parse_linter_list("ruff, pylint, bandit")
+    result = builder._parse_linter_list("ruff, pylint, bandit")
     assert result == ["ruff", "pylint", "bandit"]
 
     # Duplicates
-    result = _parse_linter_list("ruff, pylint, ruff")
+    result = builder._parse_linter_list("ruff, pylint, ruff")
     assert result == ["ruff", "pylint"]
 
     # Mixed case
-    result = _parse_linter_list("Ruff, PYLINT")
+    result = builder._parse_linter_list("Ruff, PYLINT")
     assert result == ["ruff", "pylint"]
 
     # Empty
-    result = _parse_linter_list("")
+    result = builder._parse_linter_list("")
     assert not result
 
     # Whitespace only
-    result = _parse_linter_list("  ,  ,  ")
+    result = builder._parse_linter_list("  ,  ,  ")
     assert not result
 
 
 def test_init_helper_select_linter_preferences(mocker) -> None:
     """Test linter preference selection with validation."""
-    from lintaider.cli.init_handler import _select_linter_preferences
+    from lintaider.cli.init_handler import ConfigBuilder
 
     config = Config(skip_linters=["ruff"], only_linters=[])
+    builder = ConfigBuilder(config)
 
     mocker.patch(
         "lintaider.cli.init_handler.click.prompt",
         side_effect=["ruff,pylint", ""],  # skip, only
     )
 
-    skip, only = _select_linter_preferences(config)
+    skip, only = builder._prompt_linter_preferences()
     assert "ruff" in skip
     assert "pylint" in skip
 
 
 def test_init_helper_select_linter_preferences_invalid(mocker) -> None:
     """Test that invalid linter names are handled gracefully."""
-    from lintaider.cli.init_handler import _select_linter_preferences
+    from lintaider.cli.init_handler import ConfigBuilder
 
     config = Config()
+    builder = ConfigBuilder(config)
 
     mocker.patch(
         "lintaider.cli.init_handler.click.prompt",
         side_effect=["ruff,invalid_linter", ""],
     )
 
-    skip, only = _select_linter_preferences(config)
+    skip, only = builder._prompt_linter_preferences()
     assert "ruff" in skip
     assert "invalid_linter" not in skip
 
 
 def test_init_helper_select_linter_preferences_overlap(mocker) -> None:
     """Test overlap removal between skip and only linters."""
-    from lintaider.cli.init_handler import _select_linter_preferences
+    from lintaider.cli.init_handler import ConfigBuilder
 
     config = Config()
+    builder = ConfigBuilder(config)
 
     mocker.patch(
         "lintaider.cli.init_handler.click.prompt",
         side_effect=["ruff,pylint", "pylint,bandit"],  # pylint is in both
     )
 
-    skip, only = _select_linter_preferences(config)
+    skip, only = builder._prompt_linter_preferences()
     assert "pylint" not in skip  # Should be removed from skip
     assert "pylint" in only
     assert "bandit" in only
@@ -410,7 +415,13 @@ def test_init_helper_select_linter_preferences_overlap(mocker) -> None:
 
 def test_init_helper_run_connectivity_check(mocker) -> None:
     """Test connectivity check during init."""
-    from lintaider.cli.init_handler import _run_connectivity_check
+    from lintaider.cli.init_handler import ConfigBuilder
+
+    builder = ConfigBuilder(Config(provider="openai", model="gpt-4o"))
+    builder.provider = "openai"
+    builder.model = "gpt-4o"
+    builder.api_base = None
+    builder.api_key = "test_key"
 
     mocker.patch(
         "lintaider.cli.init_handler.verify_provider_connection",
@@ -418,13 +429,19 @@ def test_init_helper_run_connectivity_check(mocker) -> None:
         new_callable=AsyncMock,
     )
 
-    ok = _run_connectivity_check("openai", "gpt-4o", None, "test_key")
+    ok = builder._run_connectivity_check()
     assert ok is True
 
 
 def test_init_helper_run_connectivity_check_failure(mocker) -> None:
     """Test connectivity check failure handling."""
-    from lintaider.cli.init_handler import _run_connectivity_check
+    from lintaider.cli.init_handler import ConfigBuilder
+
+    builder = ConfigBuilder(Config(provider="openai", model="gpt-4o"))
+    builder.provider = "openai"
+    builder.model = "gpt-4o"
+    builder.api_base = None
+    builder.api_key = "invalid"
 
     mocker.patch(
         "lintaider.cli.init_handler.verify_provider_connection",
@@ -432,44 +449,56 @@ def test_init_helper_run_connectivity_check_failure(mocker) -> None:
         new_callable=AsyncMock,
     )
 
-    ok = _run_connectivity_check("openai", "gpt-4o", None, "invalid")
+    ok = builder._run_connectivity_check()
     assert ok is False
 
 
 def test_init_helper_select_api_base(mocker) -> None:
     """Test API base selection with provider defaults."""
-    from lintaider.cli.init_handler import _select_api_base
+    from lintaider.cli.init_handler import ConfigBuilder
+
+    builder = ConfigBuilder(Config(provider="ollama", api_base=None))
+    builder.provider = "ollama"
 
     mocker.patch("lintaider.cli.init_handler.click.prompt", return_value="")
 
-    result = _select_api_base("ollama", None)
+    result = builder._prompt_api_base()
     assert result is None  # Empty input -> None
 
 
 def test_init_helper_select_api_base_custom(mocker) -> None:
     """Test custom API base override."""
-    from lintaider.cli.init_handler import _select_api_base
+    from lintaider.cli.init_handler import ConfigBuilder
+
+    builder = ConfigBuilder(Config(provider="ollama", api_base=None))
+    builder.provider = "ollama"
 
     mocker.patch(
         "lintaider.cli.init_handler.click.prompt",
         return_value="http://custom:8080",
     )
 
-    result = _select_api_base("ollama", None)
+    result = builder._prompt_api_base()
     assert result == "http://custom:8080"
 
 
 def test_init_helper_update_provider_api_key_local(mocker) -> None:
     """Test that local providers skip API key prompt."""
-    from lintaider.cli.init_handler import _update_provider_api_key
+    from lintaider.cli.init_handler import ConfigBuilder
 
-    result = _update_provider_api_key("ollama")
+    builder = ConfigBuilder(Config(provider="ollama"))
+    builder.provider = "ollama"
+
+    result = builder._prompt_api_key()
     assert result is None  # Ollama needs no API key
 
 
 def test_init_helper_update_provider_api_key_cloud(mocker) -> None:
     """Test API key capture for cloud providers."""
-    from lintaider.cli.init_handler import _update_provider_api_key
+    from lintaider.cli.init_handler import ConfigBuilder
+
+    builder = ConfigBuilder(Config(provider="openai"))
+    builder.provider = "openai"
 
     mocker.patch(
         "lintaider.cli.init_handler.get_api_key_for_provider",
@@ -483,13 +512,16 @@ def test_init_helper_update_provider_api_key_cloud(mocker) -> None:
         return_value="keychain",
     )
 
-    result = _update_provider_api_key("openai")
+    result = builder._prompt_api_key()
     assert result == "sk-test123"
 
 
 def test_init_helper_update_provider_api_key_keep_existing(mocker) -> None:
     """Test keeping existing API key when new one is not provided."""
-    from lintaider.cli.init_handler import _update_provider_api_key
+    from lintaider.cli.init_handler import ConfigBuilder
+
+    builder = ConfigBuilder(Config(provider="openai"))
+    builder.provider = "openai"
 
     mocker.patch(
         "lintaider.cli.init_handler.get_api_key_for_provider",
@@ -497,13 +529,18 @@ def test_init_helper_update_provider_api_key_keep_existing(mocker) -> None:
     )
     mocker.patch("lintaider.cli.init_handler.click.prompt", return_value="")
 
-    result = _update_provider_api_key("openai")
+    result = builder._prompt_api_key()
     assert result == "existing_key"
 
 
 def test_init_helper_select_model_with_discovery(mocker) -> None:
     """Test model selection with successful discovery."""
-    from lintaider.cli.init_handler import _select_model
+    from lintaider.cli.init_handler import ConfigBuilder
+
+    builder = ConfigBuilder(Config(provider="openai", model="gpt-4o"))
+    builder.provider = "openai"
+    builder.api_base = None
+    builder.api_key = "test_key"
 
     mocker.patch(
         "lintaider.cli.init_handler.list_provider_models",
@@ -511,13 +548,18 @@ def test_init_helper_select_model_with_discovery(mocker) -> None:
     )
     mocker.patch("lintaider.cli.init_handler.click.prompt", return_value="1")
 
-    result = _select_model("openai", "gpt-4o", None, "test_key")
+    result = builder._prompt_model()
     assert result == "gpt-4o"
 
 
 def test_init_helper_select_model_discovery_failed(mocker) -> None:
     """Test model selection falls back to recommended when discovery fails."""
-    from lintaider.cli.init_handler import _select_model
+    from lintaider.cli.init_handler import ConfigBuilder
+
+    builder = ConfigBuilder(Config(provider="openai", model=""))
+    builder.provider = "openai"
+    builder.api_base = None
+    builder.api_key = None
 
     mocker.patch(
         "lintaider.cli.init_handler.list_provider_models",
@@ -525,28 +567,32 @@ def test_init_helper_select_model_discovery_failed(mocker) -> None:
     )
     mocker.patch("lintaider.cli.init_handler.click.prompt", return_value="1")
 
-    result = _select_model("openai", "", None, None)
+    result = builder._prompt_model()
     # Should use recommended models from provider spec
     assert isinstance(result, str)
 
 
 def test_init_helper_select_provider(mocker) -> None:
     """Test provider selection menu."""
-    from lintaider.cli.init_handler import _select_provider
+    from lintaider.cli.init_handler import ConfigBuilder
+
+    builder = ConfigBuilder(Config(provider="ollama"))
 
     mocker.patch("lintaider.cli.init_handler.click.prompt", return_value="1")
 
-    result = _select_provider("ollama")
+    result = builder._prompt_provider()
     assert result == "ollama"  # First provider in PROVIDER_SPECS
 
 
 def test_init_helper_select_provider_by_name(mocker) -> None:
     """Test provider selection by entering provider name."""
-    from lintaider.cli.init_handler import _select_provider
+    from lintaider.cli.init_handler import ConfigBuilder
+
+    builder = ConfigBuilder(Config(provider="ollama"))
 
     mocker.patch(
         "lintaider.cli.init_handler.click.prompt", return_value="openai"
     )
 
-    result = _select_provider("ollama")
+    result = builder._prompt_provider()
     assert result == "openai"
