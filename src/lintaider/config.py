@@ -3,8 +3,11 @@
 import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Self
 
 from dotenv import load_dotenv
+
+DEFAULT_CONFIG_PATH = Path("lintaider.toml")
 
 
 @dataclass
@@ -18,7 +21,7 @@ class Config:
     skip_linters: list[str] = field(default_factory=list)
 
     @classmethod
-    def load(cls, path: Path | None = None) -> "Config":
+    def load(cls, path: Path | None = None) -> Self:
         """Load configuration from a TOML file and environment variables.
 
         Args:
@@ -28,7 +31,7 @@ class Config:
             A Config instance.
         """
         load_dotenv()
-        config_path = path or Path("lintaider.toml")
+        config_path = path or DEFAULT_CONFIG_PATH
 
         if not config_path.exists():
             return cls()
@@ -57,13 +60,7 @@ class Config:
             return cls()
 
     def normalize(self) -> None:
-        """Normalise all fields to canonical lower-case, stripped values.
-
-        Lowercases ``provider``, strips whitespace from ``model``, and
-        applies ``_normalize_linter_list`` to both linter lists (lowercase,
-        deduplicate, preserve insertion order). Called automatically by
-        :meth:`load` and :meth:`save`.
-        """
+        """Normalise all fields to canonical lower-case, stripped values."""
         self.provider = self.provider.strip().lower()
         self.model = self.model.strip()
         self.only_linters = _normalize_linter_list(self.only_linters)
@@ -77,7 +74,7 @@ class Config:
                 current working directory.
         """
         self.normalize()
-        config_path = path or Path("lintaider.toml")
+        config_path = path or DEFAULT_CONFIG_PATH
 
         lines = ["[ai]\n"]
         lines.append(f'provider = "{self.provider}"\n')
