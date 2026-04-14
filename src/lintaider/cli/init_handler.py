@@ -99,8 +99,10 @@ class ConfigBuilder:
         Args:
             verification_ok: Whether connectivity check passed.
         """
-        assert self.provider is not None, "Provider must be set"
-        assert self.model is not None, "Model must be set"
+        if self.provider is None:
+            raise ValueError("Provider must be set before printing summary")
+        if self.model is None:
+            raise ValueError("Model must be set before printing summary")
         self.config.provider = self.provider
         self.config.model = self.model
         self.config.api_base = self.api_base
@@ -112,8 +114,10 @@ class ConfigBuilder:
         Returns:
             The populated Config object.
         """
-        assert self.provider is not None, "Provider must be set"
-        assert self.model is not None, "Model must be set"
+        if self.provider is None:
+            raise ValueError("Provider must be set before building config")
+        if self.model is None:
+            raise ValueError("Model must be set before building config")
         self.config.provider = self.provider
         self.config.model = self.model
         self.config.api_base = self.api_base
@@ -155,12 +159,16 @@ class ConfigBuilder:
                 return provider
 
             console.print(
-                "[yellow]Invalid provider. Select a number from the list.[/yellow]"
+                "[yellow]Invalid provider. "
+                "Select a number from the list.[/yellow]"
             )
 
     def _prompt_api_key(self) -> str | None:
         """Prompt for and store API key when required."""
-        assert self.provider is not None
+        if self.provider is None:
+            raise ValueError(
+                "Provider must be selected before prompting for API key"
+            )
         provider_spec = get_provider_spec(self.provider)
         if not provider_spec or not provider_spec.requires_api_key:
             return None
@@ -197,7 +205,10 @@ class ConfigBuilder:
 
     def _prompt_api_base(self) -> str | None:
         """Prompt for API base URL override."""
-        assert self.provider is not None
+        if self.provider is None:
+            raise ValueError(
+                "Provider must be selected before prompting for API base"
+            )
         provider_spec = get_provider_spec(self.provider)
         default_api_base = self.config.api_base
         if not default_api_base and provider_spec:
@@ -212,7 +223,10 @@ class ConfigBuilder:
 
     def _build_model_candidates(self) -> tuple[list[str], str]:
         """Build list of model choices for selection menu."""
-        assert self.provider is not None
+        if self.provider is None:
+            raise ValueError(
+                "Provider must be selected before building models"
+            )
         provider_spec = get_provider_spec(self.provider)
         default_model = self.config.model or (
             provider_spec.default_model if provider_spec else ""
@@ -274,7 +288,7 @@ class ConfigBuilder:
         return default_model or "llama3"
 
     def _parse_linter_list(self, raw: str) -> list[str]:
-        """Normalise a comma-separated string into a deduplicated linter list."""
+        """Normalise a comma-separated string into a deduplicated list."""
         if not raw:
             return []
         normalized = [
@@ -322,8 +336,8 @@ class ConfigBuilder:
         overlap = sorted(set(skip_linters).intersection(only_linters))
         if overlap:
             console.print(
-                "[yellow]Removing linters present in both skip and only:[/yellow] "
-                + ", ".join(overlap)
+                "[yellow]Removing linters present in both "
+                "skip and only:[/yellow] " + ", ".join(overlap)
             )
             skip_linters = [
                 name for name in skip_linters if name not in overlap
@@ -333,8 +347,10 @@ class ConfigBuilder:
 
     def _run_connectivity_check(self) -> bool:
         """Run connectivity check for current configuration."""
-        assert self.provider is not None
-        assert self.model is not None
+        if self.provider is None or self.model is None:
+            raise ValueError(
+                "Provider and model must be selected before connectivity check"
+            )
         try:
             ok, message = asyncio.run(
                 verify_provider_connection(
@@ -393,7 +409,8 @@ def handle_init() -> None:
     console.print("[bold]LintAIder Setup Wizard[/bold]\n")
 
     builder.select_provider()
-    assert builder.provider is not None
+    if builder.provider is None:
+        raise ValueError("Provider selection did not produce a value")
     provider_spec = get_provider_spec(builder.provider)
 
     builder.update_provider_api_key()
@@ -421,7 +438,8 @@ def handle_init() -> None:
     built_config.save()
 
     storage_note = ""
-    assert builder.provider is not None
+    if builder.provider is None:
+        raise ValueError("Provider must be set before storing config")
     if provider_spec and provider_spec.requires_api_key:
         env_var = get_env_var_for_provider(builder.provider)
         storage_note = f"\nKey Source: [bold]{env_var or 'configured'}[/bold]"
