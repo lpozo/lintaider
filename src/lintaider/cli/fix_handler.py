@@ -15,9 +15,9 @@ from lintaider.cli.scan_handler import handle_scan
 from lintaider.cli.ui import console
 from lintaider.config import Config
 from lintaider.linters.context import (
+    ProjectScanner,
     ProjectSummary,
-    format_snippet,
-    get_project_summary,
+    SnippetProvider,
 )
 from lintaider.linters.result import LinterResult
 
@@ -65,7 +65,7 @@ async def handle_fix(
     with console.status(
         "[dim]Analyzing project context...[/dim]", spinner="dots"
     ):
-        project_summary = get_project_summary(target_path)
+        project_summary = ProjectScanner.scan_project(target_path)
 
     # Launch AI tasks background orchestration
     ai_tasks = _orchestrate_ai_tasks(ai, results, project_summary)
@@ -181,7 +181,7 @@ async def _process_fix_interactive(
     )
 
     if result.snippet_context:
-        formatted = format_snippet(
+        formatted = SnippetProvider.format(
             result.snippet_context, result.snippet_start_line
         )
         syntax = Syntax(

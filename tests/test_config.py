@@ -41,14 +41,14 @@ def test_config_load_non_existent() -> None:
 def test_config_normalize_provider() -> None:
     """Test normalization converts provider to lowercase."""
     config = Config(provider="OpenAI")
-    config.normalize()
+    config._normalize()
     assert config.provider == "openai"
 
 
 def test_config_normalize_model() -> None:
     """Test normalization trims model whitespace."""
     config = Config(model="  gpt-4o  ")
-    config.normalize()
+    config._normalize()
     assert config.model == "gpt-4o"
 
 
@@ -62,7 +62,7 @@ def test_config_normalize_linter_lists() -> None:
         ],  # Has duplicate and mixed case
         only_linters=["BanDit", "mypy"],
     )
-    config.normalize()
+    config._normalize()
     assert config.skip_linters == [
         "ruff",
         "pylint",
@@ -71,7 +71,7 @@ def test_config_normalize_linter_lists() -> None:
 
 
 def test_config_save_normalizes() -> None:
-    """Test that save() calls normalize()."""
+    """Test that save() calls _normalize()."""
     config_file = Path(".test_normalize.toml")
     try:
         config = Config(provider="OpenAI", model="  GPT-4  ")
@@ -86,7 +86,7 @@ def test_config_save_normalizes() -> None:
 
 
 def test_config_load_normalizes() -> None:
-    """Test that load() calls normalize() on loaded config."""
+    """Test that load() calls _normalize() on loaded config."""
     config_file = Path(".test_load_normalize.toml")
     try:
         config_file.write_text(
@@ -109,14 +109,14 @@ def test_config_load_normalizes() -> None:
 def test_config_linter_list_deduplication() -> None:
     """Test that linter lists deduplicate while preserving order."""
     config = Config(skip_linters=["ruff", "pylint", "ruff", "bandit"])
-    config.normalize()
+    config._normalize()
     assert config.skip_linters == ["ruff", "pylint", "bandit"]
 
 
 def test_config_empty_linter_lists() -> None:
     """Test handling of empty linter lists."""
     config = Config(skip_linters=[], only_linters=[])
-    config.normalize()
+    config._normalize()
     assert not config.skip_linters
     assert not config.only_linters
 
@@ -124,5 +124,5 @@ def test_config_empty_linter_lists() -> None:
 def test_config_whitespace_only_linter_entries() -> None:
     """Test that whitespace-only linter entries are removed."""
     config = Config(skip_linters=["ruff", "  ", "\t", "pylint"])
-    config.normalize()
+    config._normalize()
     assert config.skip_linters == ["ruff", "pylint"]

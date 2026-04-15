@@ -54,17 +54,26 @@ class Config:
                 filtered = {k: v for k, v in merged.items() if k in valid_keys}
 
                 config = cls(**filtered)
-                config.normalize()
+                config._normalize()
                 return config
         except (OSError, ValueError):
             return cls()
 
-    def normalize(self) -> None:
+    def _normalize(self) -> None:
         """Normalise all fields to canonical lower-case, stripped values."""
         self.provider = self.provider.strip().lower()
         self.model = self.model.strip()
-        self.only_linters = _normalize_linter_list(self.only_linters)
-        self.skip_linters = _normalize_linter_list(self.skip_linters)
+
+        self.only_linters = list(
+            dict.fromkeys(
+                v.strip().lower() for v in self.only_linters if v.strip()
+            )
+        )
+        self.skip_linters = list(
+            dict.fromkeys(
+                v.strip().lower() for v in self.skip_linters if v.strip()
+            )
+        )
 
     def save(self, path: Path | None = None) -> None:
         """Normalise and persist the current configuration to a TOML file.
@@ -73,7 +82,7 @@ class Config:
             path: Destination path. Defaults to ``lintaider.toml`` in the
                 current working directory.
         """
-        self.normalize()
+        self._normalize()
         config_path = path or DEFAULT_CONFIG_PATH
 
         lines = ["[ai]\n"]
@@ -87,17 +96,3 @@ class Config:
         lines.append(f"skip_linters = {self.skip_linters}\n")
 
         config_path.write_text("".join(lines), encoding="utf-8")
-
-
-def _normalize_linter_list(values: list[str]) -> list[str]:
-    """Lowercase, strip, and deduplicate a list of linter names.
-
-    Args:
-        values: Raw list of linter name strings.
-
-    Returns:
-        An order-preserving list with each entry lowercased and stripped,
-        and any duplicates removed.
-    """
-    normalized = [value.strip().lower() for value in values if value.strip()]
-    return list(dict.fromkeys(normalized))
