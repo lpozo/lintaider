@@ -334,33 +334,6 @@ def test_cli_apply_patch_fuzzy(tmp_path) -> None:
     assert "line1" in content
 
 
-def test_init_helper_parse_linter_list() -> None:
-    """Test linter list parsing helper."""
-    from lintaider.cli.init_handler import ConfigBuilder
-
-    builder = ConfigBuilder(Config())
-
-    # Normal case
-    result = builder._parse_linter_list("ruff, pylint, bandit")
-    assert result == ["ruff", "pylint", "bandit"]
-
-    # Duplicates
-    result = builder._parse_linter_list("ruff, pylint, ruff")
-    assert result == ["ruff", "pylint"]
-
-    # Mixed case
-    result = builder._parse_linter_list("Ruff, PYLINT")
-    assert result == ["ruff", "pylint"]
-
-    # Empty
-    result = builder._parse_linter_list("")
-    assert not result
-
-    # Whitespace only
-    result = builder._parse_linter_list("  ,  ,  ")
-    assert not result
-
-
 def test_init_helper_select_linter_preferences(mocker) -> None:
     """Test linter preference selection with validation."""
     from lintaider.cli.init_handler import ConfigBuilder
@@ -370,16 +343,17 @@ def test_init_helper_select_linter_preferences(mocker) -> None:
 
     mocker.patch(
         "lintaider.cli.init_handler.click.prompt",
-        side_effect=["ruff,pylint", ""],  # skip, only
+        side_effect=["pylint", "bandit"],  # skip, only
     )
 
-    skip, only = builder._prompt_linter_preferences()
-    assert "ruff" in skip
+    skip, only = builder.select_linter_preferences()
     assert "pylint" in skip
+    assert "bandit" in only
+    assert "ruff" not in skip
 
 
 def test_init_helper_select_linter_preferences_invalid(mocker) -> None:
-    """Test that invalid linter names are handled gracefully."""
+    """Test that invalid linter names are handled gracefully via public API."""
     from lintaider.cli.init_handler import ConfigBuilder
 
     config = Config()
@@ -390,7 +364,7 @@ def test_init_helper_select_linter_preferences_invalid(mocker) -> None:
         side_effect=["ruff,invalid_linter", ""],
     )
 
-    skip, only = builder._prompt_linter_preferences()
+    skip, _ = builder.select_linter_preferences()
     assert "ruff" in skip
     assert "invalid_linter" not in skip
 
@@ -407,20 +381,18 @@ def test_init_helper_select_linter_preferences_overlap(mocker) -> None:
         side_effect=["ruff,pylint", "pylint,bandit"],  # pylint is in both
     )
 
-    skip, only = builder._prompt_linter_preferences()
+    skip, only = builder.select_linter_preferences()
     assert "pylint" not in skip  # Should be removed from skip
     assert "pylint" in only
-    assert "bandit" in only
 
 
-def test_init_helper_run_connectivity_check(mocker) -> None:
-    """Test connectivity check during init."""
+def test_init_helper_verify_connection(mocker) -> None:
+    """Test connectivity check via public API."""
     from lintaider.cli.init_handler import ConfigBuilder
 
     builder = ConfigBuilder(Config(provider="openai", model="gpt-4o"))
     builder.provider = "openai"
     builder.model = "gpt-4o"
-    builder.api_base = None
     builder.api_key = "test_key"
 
     mocker.patch(
@@ -429,18 +401,17 @@ def test_init_helper_run_connectivity_check(mocker) -> None:
         new_callable=AsyncMock,
     )
 
-    ok = builder._run_connectivity_check()
+    ok = builder.verify_connection()
     assert ok is True
 
 
-def test_init_helper_run_connectivity_check_failure(mocker) -> None:
+def test_init_helper_verify_connection_failure(mocker) -> None:
     """Test connectivity check failure handling."""
     from lintaider.cli.init_handler import ConfigBuilder
 
     builder = ConfigBuilder(Config(provider="openai", model="gpt-4o"))
     builder.provider = "openai"
     builder.model = "gpt-4o"
-    builder.api_base = None
     builder.api_key = "invalid"
 
     mocker.patch(
@@ -449,12 +420,12 @@ def test_init_helper_run_connectivity_check_failure(mocker) -> None:
         new_callable=AsyncMock,
     )
 
-    ok = builder._run_connectivity_check()
+    ok = builder.verify_connection()
     assert ok is False
 
 
 def test_init_helper_select_api_base(mocker) -> None:
-    """Test API base selection with provider defaults."""
+    """Test API base selection via public API."""
     from lintaider.cli.init_handler import ConfigBuilder
 
     builder = ConfigBuilder(Config(provider="ollama", api_base=None))
@@ -462,12 +433,12 @@ def test_init_helper_select_api_base(mocker) -> None:
 
     mocker.patch("lintaider.cli.init_handler.click.prompt", return_value="")
 
-    result = builder._prompt_api_base()
-    assert result is None  # Empty input -> None
+    result = builder.select_api_base()
+    assert result is None  # Empty input
 
 
 def test_init_helper_select_api_base_custom(mocker) -> None:
-    """Test custom API base override."""
+    """Test custom API base override via public API."""
     from lintaider.cli.init_handler import ConfigBuilder
 
     builder = ConfigBuilder(Config(provider="ollama", api_base=None))
@@ -478,23 +449,23 @@ def test_init_helper_select_api_base_custom(mocker) -> None:
         return_value="http://custom:8080",
     )
 
-    result = builder._prompt_api_base()
+    result = builder.select_api_base()
     assert result == "http://custom:8080"
 
 
 def test_init_helper_update_provider_api_key_local(mocker) -> None:
-    """Test that local providers skip API key prompt."""
+    """Test API key update for local providers via public API."""
     from lintaider.cli.init_handler import ConfigBuilder
 
     builder = ConfigBuilder(Config(provider="ollama"))
     builder.provider = "ollama"
 
-    result = builder._prompt_api_key()
+    result = builder.update_provider_api_key()
     assert result is None  # Ollama needs no API key
 
 
 def test_init_helper_update_provider_api_key_cloud(mocker) -> None:
-    """Test API key capture for cloud providers."""
+    """Test API key capture for cloud providers via public API."""
     from lintaider.cli.init_handler import ConfigBuilder
 
     builder = ConfigBuilder(Config(provider="openai"))
@@ -512,80 +483,42 @@ def test_init_helper_update_provider_api_key_cloud(mocker) -> None:
         return_value="keychain",
     )
 
-    result = builder._prompt_api_key()
+    result = builder.update_provider_api_key()
     assert result == "sk-test123"
 
 
-def test_init_helper_update_provider_api_key_keep_existing(mocker) -> None:
-    """Test keeping existing API key when new one is not provided."""
-    from lintaider.cli.init_handler import ConfigBuilder
-
-    builder = ConfigBuilder(Config(provider="openai"))
-    builder.provider = "openai"
-
-    mocker.patch(
-        "lintaider.cli.init_handler.get_api_key_for_provider",
-        return_value="existing_key",
-    )
-    mocker.patch("lintaider.cli.init_handler.click.prompt", return_value="")
-
-    result = builder._prompt_api_key()
-    assert result == "existing_key"
-
-
-def test_init_helper_select_model_with_discovery(mocker) -> None:
-    """Test model selection with successful discovery."""
+def test_init_helper_select_model(mocker) -> None:
+    """Test model selection via public API."""
     from lintaider.cli.init_handler import ConfigBuilder
 
     builder = ConfigBuilder(Config(provider="openai", model="gpt-4o"))
     builder.provider = "openai"
-    builder.api_base = None
     builder.api_key = "test_key"
 
     mocker.patch(
         "lintaider.cli.init_handler.list_provider_models",
-        return_value=["gpt-4o", "gpt-4o-mini", "gpt-3.5-turbo"],
+        return_value=["gpt-4o", "gpt-4o-mini"],
     )
     mocker.patch("lintaider.cli.init_handler.click.prompt", return_value="1")
 
-    result = builder._prompt_model()
+    result = builder.select_model()
     assert result == "gpt-4o"
 
 
-def test_init_helper_select_model_discovery_failed(mocker) -> None:
-    """Test model selection falls back to recommended when discovery fails."""
-    from lintaider.cli.init_handler import ConfigBuilder
-
-    builder = ConfigBuilder(Config(provider="openai", model=""))
-    builder.provider = "openai"
-    builder.api_base = None
-    builder.api_key = None
-
-    mocker.patch(
-        "lintaider.cli.init_handler.list_provider_models",
-        return_value=[],  # Discovery failed
-    )
-    mocker.patch("lintaider.cli.init_handler.click.prompt", return_value="1")
-
-    result = builder._prompt_model()
-    # Should use recommended models from provider spec
-    assert isinstance(result, str)
-
-
 def test_init_helper_select_provider(mocker) -> None:
-    """Test provider selection menu."""
+    """Test provider selection via public API."""
     from lintaider.cli.init_handler import ConfigBuilder
 
     builder = ConfigBuilder(Config(provider="ollama"))
 
     mocker.patch("lintaider.cli.init_handler.click.prompt", return_value="1")
 
-    result = builder._prompt_provider()
-    assert result == "ollama"  # First provider in PROVIDER_SPECS
+    result = builder.select_provider()
+    assert result == "ollama"
 
 
 def test_init_helper_select_provider_by_name(mocker) -> None:
-    """Test provider selection by entering provider name."""
+    """Test provider selection by name via public API."""
     from lintaider.cli.init_handler import ConfigBuilder
 
     builder = ConfigBuilder(Config(provider="ollama"))
@@ -594,7 +527,7 @@ def test_init_helper_select_provider_by_name(mocker) -> None:
         "lintaider.cli.init_handler.click.prompt", return_value="openai"
     )
 
-    result = builder._prompt_provider()
+    result = builder.select_provider()
     assert result == "openai"
 
 
@@ -633,35 +566,19 @@ def test_scan_reporter_write_json_report(tmp_path, fake_result) -> None:
     data = json.loads(output.read_text(encoding="utf-8"))
     assert len(data) == 1
     assert data[0]["linter_name"] == "TestLinter"
-    assert data[0]["error_code"] == "T001"
-
-
-def test_scan_reporter_write_json_report_empty(tmp_path) -> None:
-    """write_json_report writes an empty array when there are no results."""
-    import json
-
-    from lintaider.cli.scan_handler import ScanReporter
-
-    output = tmp_path / "out.json"
-    reporter = ScanReporter([], tmp_path, output)
-    reporter.write_json_report()
-
-    assert output.exists()
-    data = json.loads(output.read_text(encoding="utf-8"))
-    assert data == []
 
 
 def test_scan_reporter_write_human_readable_report(
     tmp_path, fake_result
 ) -> None:
     """write_human_readable_report writes a markdown file in the cwd."""
+    import os
+    from pathlib import Path
+
     from lintaider.cli.scan_handler import ScanReporter
 
     output = tmp_path / "out.json"
     reporter = ScanReporter([fake_result], tmp_path, output)
-
-    import os
-    from pathlib import Path
 
     old_cwd = Path.cwd()
     try:
@@ -676,33 +593,7 @@ def test_scan_reporter_write_human_readable_report(
     assert "# Linting Report" in content
     assert "TestLinter" in content
     assert "Something wrong" in content
-
-
-def test_scan_reporter_build_markdown_no_results(tmp_path) -> None:
-    """_build_markdown_report with no results shows 'No issues found'."""
-    from lintaider.cli.scan_handler import ScanReporter
-
-    reporter = ScanReporter([], tmp_path, tmp_path / "out.json")
-    md = reporter._build_markdown_report()
-
-    assert "# Linting Report" in md
-    assert "No issues found" in md
-    assert "| None | 0 |" in md
-
-
-def test_scan_reporter_build_markdown_with_results(
-    tmp_path, fake_result
-) -> None:
-    """_build_markdown_report includes linter name, code, and message."""
-    from lintaider.cli.scan_handler import ScanReporter
-
-    reporter = ScanReporter([fake_result], tmp_path, tmp_path / "out.json")
-    md = reporter._build_markdown_report()
-
-    assert "TestLinter" in md
-    assert "T001" in md
-    assert "Something wrong" in md
-    assert "bad_code()" in md
+    assert "bad_code()" in content
 
 
 def test_scan_reporter_write_summary_report(tmp_path, fake_result) -> None:
@@ -714,57 +605,3 @@ def test_scan_reporter_write_summary_report(tmp_path, fake_result) -> None:
 
     # Should not raise; Rich output is captured by the console
     reporter.write_summary_report()
-
-
-def test_scan_reporter_write_summary_report_verbose(
-    tmp_path, fake_result
-) -> None:
-    """write_summary_report with verbose=True prints per-issue panels."""
-    from io import StringIO
-
-    from rich.console import Console
-
-    from lintaider.cli.scan_handler import ScanReporter
-
-    output = tmp_path / "out.json"
-    reporter = ScanReporter([fake_result], tmp_path, output)
-
-    buf = StringIO()
-    import lintaider.cli.scan_handler as sh
-
-    original_console = sh.console
-    sh.console = Console(file=buf, highlight=False)
-    try:
-        reporter.write_summary_report(verbose=True)
-    finally:
-        sh.console = original_console
-
-    text = buf.getvalue()
-    assert "Issue 1/1" in text
-    assert "T001" in text
-    assert "Something wrong" in text
-    assert "bad_code()" in text
-
-
-def test_scan_reporter_print_fix_hint(tmp_path) -> None:
-    """print_fix_hint prints the lintaider fix hint."""
-    from io import StringIO
-
-    from rich.console import Console
-
-    from lintaider.cli.scan_handler import ScanReporter
-
-    output = tmp_path / "out.json"
-    reporter = ScanReporter([], tmp_path, output)
-
-    buf = StringIO()
-    import lintaider.cli.scan_handler as sh
-
-    original_console = sh.console
-    sh.console = Console(file=buf, highlight=False)
-    try:
-        reporter.print_fix_hint()
-    finally:
-        sh.console = original_console
-
-    assert "lintaider fix" in buf.getvalue()

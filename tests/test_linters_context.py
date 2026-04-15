@@ -182,12 +182,12 @@ def test_project_scanner_scan_single_file(tmp_path) -> None:
 
 
 def test_fallback_search_no_match(tmp_path) -> None:
-    """Test fallback search when no class/def is found."""
+    """Test fallback search via public API when no class/def is found."""
     test_file = tmp_path / "no_context.py"
     test_file.write_text("print('hello')\nprint('world')", encoding="utf-8")
 
-    # This triggers fallback since AST is simple, but won't find def/class
-    idx, info = SourceAnalyzer._fallback_search(test_file, line_start=2)
+    # This triggers fallback via find_context_bounds
+    idx, info = SourceAnalyzer.find_context_bounds(test_file, line_start=2)
     assert idx == 0
     assert "module scope" in info
 
@@ -199,7 +199,7 @@ def test_snippet_provider_extract_bounds(tmp_path) -> None:
 
     # Start beyond file length
     snippet = SnippetProvider.extract(test_file, line_start=10)
-    assert snippet == ""  # Corrected from previous failing assumption
+    assert snippet == ""
 
     # End bound
     snippet = SnippetProvider.extract(
@@ -223,11 +223,11 @@ def test_extract_unicode_error(tmp_path) -> None:
 
 
 def test_fallback_search_index_error(tmp_path) -> None:
-    """Test fallback search with line index out of range."""
+    """Test fallback search via public API with line index out of range."""
     test_file = tmp_path / "short.py"
     test_file.write_text("line1", encoding="utf-8")
 
-    # line_start=10 on a 1-line file
-    idx, info = SourceAnalyzer._fallback_search(test_file, 10)
+    # line_start=10 on a 1-line file triggers fallback in find_context_bounds
+    idx, info = SourceAnalyzer.find_context_bounds(test_file, line_start=10)
     assert idx == 0
     assert "module scope" in info

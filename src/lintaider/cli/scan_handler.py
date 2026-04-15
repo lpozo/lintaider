@@ -14,7 +14,8 @@ from rich.progress import (
 )
 from rich.table import Table
 
-from lintaider.cli.ui import HUMAN_READABLE_REPORT_FILE, console
+from lintaider.cli.ui import HUMAN_READABLE_REPORT_FILE
+from lintaider.cli.ui import console as console
 from lintaider.config import Config
 from lintaider.linters import LINTER_MAP, Engine
 from lintaider.linters.result import LinterResult
