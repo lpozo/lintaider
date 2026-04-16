@@ -3,8 +3,11 @@
 import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Self
 
 from dotenv import load_dotenv
+
+DEFAULT_CONFIG_PATH = Path("lintaider.toml")
 
 
 @dataclass
@@ -18,7 +21,7 @@ class Config:
     skip_linters: list[str] = field(default_factory=list)
 
     @classmethod
-    def load(cls, path: Path | None = None) -> "Config":
+    def load(cls, path: Path | None = None) -> Self:
         """Load configuration from a TOML file and environment variables.
 
         Args:
@@ -28,7 +31,7 @@ class Config:
             A Config instance.
         """
         load_dotenv()
-        config_path = path or Path("lintaider.toml")
+        config_path = path or DEFAULT_CONFIG_PATH
 
         if not config_path.exists():
             return cls()
@@ -51,23 +54,26 @@ class Config:
                 filtered = {k: v for k, v in merged.items() if k in valid_keys}
 
                 config = cls(**filtered)
-                config.normalize()
+                config._normalize()
                 return config
         except (OSError, ValueError):
             return cls()
 
-    def normalize(self) -> None:
-        """Normalise all fields to canonical lower-case, stripped values.
-
-        Lowercases ``provider``, strips whitespace from ``model``, and
-        applies ``_normalize_linter_list`` to both linter lists (lowercase,
-        deduplicate, preserve insertion order). Called automatically by
-        :meth:`load` and :meth:`save`.
-        """
+    def _normalize(self) -> None:
+        """Normalise all fields to canonical lower-case, stripped values."""
         self.provider = self.provider.strip().lower()
         self.model = self.model.strip()
-        self.only_linters = _normalize_linter_list(self.only_linters)
-        self.skip_linters = _normalize_linter_list(self.skip_linters)
+
+        self.only_linters = list(
+            dict.fromkeys(
+                v.strip().lower() for v in self.only_linters if v.strip()
+            )
+        )
+        self.skip_linters = list(
+            dict.fromkeys(
+                v.strip().lower() for v in self.skip_linters if v.strip()
+            )
+        )
 
     def save(self, path: Path | None = None) -> None:
         """Normalise and persist the current configuration to a TOML file.
@@ -76,8 +82,8 @@ class Config:
             path: Destination path. Defaults to ``lintaider.toml`` in the
                 current working directory.
         """
-        self.normalize()
-        config_path = path or Path("lintaider.toml")
+        self._normalize()
+        config_path = path or DEFAULT_CONFIG_PATH
 
         lines = ["[ai]\n"]
         lines.append(f'provider = "{self.provider}"\n')
@@ -90,17 +96,3 @@ class Config:
         lines.append(f"skip_linters = {self.skip_linters}\n")
 
         config_path.write_text("".join(lines), encoding="utf-8")
-
-
-def _normalize_linter_list(values: list[str]) -> list[str]:
-    """Lowercase, strip, and deduplicate a list of linter names.
-
-    Args:
-        values: Raw list of linter name strings.
-
-    Returns:
-        An order-preserving list with each entry lowercased and stripped,
-        and any duplicates removed.
-    """
-    normalized = [value.strip().lower() for value in values if value.strip()]
-    return list(dict.fromkeys(normalized))

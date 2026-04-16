@@ -36,7 +36,10 @@ def linter() -> SemgrepLinter:
                             "check_id": "rules.unsafe",
                             "path": "test.py",
                             "start": {"line": 1, "col": 1},
-                            "extra": {"message": "Unsafe", "severity": "WARNING"},
+                            "extra": {
+                                "message": "Unsafe",
+                                "severity": "WARNING",
+                            },
                         }
                     ]
                 }
@@ -58,7 +61,9 @@ async def test_semgrep_scenarios(
 ) -> None:
     """Test various Semgrep parsing scenarios."""
     mock_result = AsyncCompletedProcess(stdout=stdout, stderr="", returncode=0)
-    mocker.patch.object(SemgrepLinter, "_run_command", return_value=mock_result)
+    mocker.patch.object(
+        SemgrepLinter, "_run_command", return_value=mock_result
+    )
 
     results = await linter.run(Path("target.py"))
 

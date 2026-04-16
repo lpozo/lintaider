@@ -1,10 +1,16 @@
 The following code has a linter error.
-File: {file_path}
-Location: {semantic_context}
+
 Linter: {linter_name} (Code: {error_code})
 Message: {message}
+{linter_advice}
 
-Code snippet with context:
+Location: {semantic_context}
+File: {file_path}
+
+{project_context}
+{target_config}
+
+Original code snippet with context:
 ```python
 {snippet_context}
 ```

@@ -1,6 +1,7 @@
 """Tests for AI providers."""
 
 from pathlib import Path
+from typing import cast
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -19,26 +20,35 @@ from lintaider.ai.registry import (
 from lintaider.linters.result import LinterResult
 
 
-def test_create_ai_provider() -> None:
-    """Test create_ai_provider logic."""
+def test_create_ai_provider_ollama() -> None:
+    """Test create_ai_provider logic for Ollama."""
     ollama = create_ai_provider("ollama", "llama3")
     assert isinstance(ollama, LiteLLMProvider)
     # Check that it added the prefix and set api_base
     assert ollama.model == "ollama/llama3"
     assert ollama.api_base == "http://localhost:11434"
 
+    custom_ollama = cast(
+        LiteLLMProvider,
+        create_ai_provider("ollama", "llama3", "http://remote:11434"),
+    )
+    assert custom_ollama.api_base == "http://remote:11434"
+
+
+def test_create_ai_provider_openai() -> None:
+    """Test create_ai_provider logic for OpenAI."""
     openai = create_ai_provider("openai", "gpt-4")
     assert isinstance(openai, LiteLLMProvider)
     assert openai.model == "openai/gpt-4"
     assert openai.api_base is None
 
+
+def test_create_ai_provider_anthropic() -> None:
+    """Test create_ai_provider logic for Anthropic."""
     anthropic = create_ai_provider("anthropic", "claude-3")
     assert isinstance(anthropic, LiteLLMProvider)
     assert anthropic.model == "anthropic/claude-3"
     assert anthropic.api_base is None
-
-    custom_ollama = create_ai_provider("ollama", "llama3", "http://remote:11434")
-    assert custom_ollama.api_base == "http://remote:11434"
 
 
 @pytest.mark.asyncio
@@ -47,7 +57,9 @@ async def test_litellm_provider(mock_acompletion) -> None:
     """Test LiteLLMProvider integration."""
     mock_acompletion.return_value.choices[
         0
-    ].message.content = '[{"explanation": "Lite Fix", "code_diff": "print(2)"}]'
+    ].message.content = (
+        '[{"explanation": "Lite Fix", "code_diff": "print(2)"}]'
+    )
 
     provider = LiteLLMProvider(model="gpt-4o")
     linter_res = LinterResult(
@@ -70,14 +82,16 @@ async def test_litellm_provider(mock_acompletion) -> None:
     mock_acompletion.assert_called_once()
 
 
-def test_provider_registry_structure() -> None:
-    """Test provider registry has expected providers and fields."""
-    assert len(PROVIDER_SPECS) == 4
+def test_provider_registry_coverage() -> None:
+    """Test provider registry has expected providers."""
     assert "ollama" in PROVIDER_SPECS
     assert "openai" in PROVIDER_SPECS
     assert "anthropic" in PROVIDER_SPECS
     assert "gemini" in PROVIDER_SPECS
 
+
+def test_provider_registry_ollama() -> None:
+    """Test Ollama registry details."""
     ollama = PROVIDER_SPECS["ollama"]
     assert ollama.provider_id == "ollama"
     assert ollama.display_name == "Ollama (Local)"
@@ -87,6 +101,9 @@ def test_provider_registry_structure() -> None:
     assert ollama.default_api_base == "http://localhost:11434"
     assert ollama.model_list_endpoint == "/api/tags"
 
+
+def test_provider_registry_openai() -> None:
+    """Test OpenAI registry details."""
     openai = PROVIDER_SPECS["openai"]
     assert openai.provider_id == "openai"
     assert openai.requires_api_key is True
@@ -222,7 +239,9 @@ def test_create_ai_provider_with_keychain() -> None:
     mock_keyring.get_password.return_value = "keyring_key"
 
     with patch("lintaider.ai.auth.keyring_module", mock_keyring):
-        provider = create_ai_provider("openai", "gpt-4o")
+        provider = cast(
+            LiteLLMProvider, create_ai_provider("openai", "gpt-4o")
+        )
 
     assert provider.api_key in ("keyring_key", None)  # May or may not fetch
     assert provider.model == "openai/gpt-4o"

@@ -62,7 +62,7 @@ def linter() -> PylintLinter:
             1,
             "W0611",  # Placeholder code
             # PylintLinter.parse_output fallback:
-            # error_code = error.get("message-id", error.get("symbol", "Unknown"))
+            # error_code = error.get("message-id", ... "Unknown")
         ),
     ],
 )

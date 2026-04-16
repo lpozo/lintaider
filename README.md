@@ -1,16 +1,6 @@
 # LintAIder
 
-LintAIder is an AI-assisted code auditing and auto-fix CLI for Python projects.
-It runs multiple linters concurrently, aggregates findings into a unified format,
-and lets you apply AI-generated fixes interactively.
-
-## Highlights
-
-- Async linter orchestration with `asyncio`
-- AI provider support via LiteLLM (`ollama`, `openai`, `anthropic`, `gemini`)
-- Interactive onboarding (`init`) with model discovery and connectivity checks
-- Unified issue model across linters
-- Interactive patch application with fuzzy matching fallback
+LintAIder is a CLI tool for improving the code quality of Python projects. It runs multiple linters concurrently, aggregates findings into a unified format, passes them to an AI model for analysis and lets you apply AI-generated fixes interactively.
 
 ## Requirements
 
@@ -20,9 +10,8 @@ and lets you apply AI-generated fixes interactively.
 ## Installation
 
 ```bash
-git clone https://github.com/lpozo/lintaider.git
-cd lintaider
-uv sync
+uv venv .venv
+uv add lintaider
 ```
 
 ## Quick Start
@@ -33,30 +22,31 @@ uv sync
 uv run lintaider init
 ```
 
-This command creates or updates:
-
-- `lintaider.toml` for provider/model/linter defaults
-- `.env` for API keys when keychain storage is unavailable
-
-### 2. Scan
+### 2. Scan a Codebase
 
 ```bash
 uv run lintaider scan src/
 ```
 
-Verbose output:
+Verbose output that prints every finding with code context:
 
 ```bash
 uv run lintaider scan src/ -v
 ```
 
-Custom output file:
+Generate a human-readable Markdown report:
+
+```bash
+uv run lintaider scan src/ --human-readable
+```
+
+Save results to a custom file:
 
 ```bash
 uv run lintaider scan src/ -o my-scan.json
 ```
 
-### 3. Fix
+### 3. Fix Linting Findings
 
 Use existing scan results (`scan-result.json` by default):
 
@@ -70,7 +60,7 @@ Provide a specific results file:
 uv run lintaider fix --input my-scan.json
 ```
 
-Scan then fix in one command:
+Scan and then fix in one command:
 
 ```bash
 uv run lintaider fix src/
@@ -95,26 +85,34 @@ You can also set default `only_linters` and `skip_linters` values in
 
 ## Supported Linters
 
-- [Ruff](https://github.com/astral-sh/ruff)
-- [Pylint](https://github.com/pylint-dev/pylint)
-- [Bandit](https://github.com/PyCQA/bandit)
-- [MyPy](https://github.com/python/mypy)
-- [Pyright](https://github.com/microsoft/pyright)
-- [Semgrep](https://github.com/semgrep/semgrep)
-- [Vulture](https://github.com/jendrikseipp/vulture)
-- [Radon](https://github.com/rubik/radon)
-- [Safety](https://github.com/pyupio/safety)
+| Linter | Category | Detects |
+| --- | --- | --- |
+| [Ruff](https://github.com/astral-sh/ruff) | Style | PEP 8, imports, code smells |
+| [Pylint](https://github.com/pylint-dev/pylint) | Style | Code quality, conventions |
+| [Bandit](https://github.com/PyCQA/bandit) | Security | Common security vulnerabilities |
+| [MyPy](https://github.com/python/mypy) | Typing | Static type checking |
+| [Pyright](https://github.com/microsoft/pyright) | Typing | Advanced type inference |
+| [Semgrep](https://github.com/semgrep/semgrep) | Semantic | Pattern-based analysis |
+| [Vulture](https://github.com/jendrikseipp/vulture) | Dead code | Unused variables, functions |
+| [Radon](https://github.com/rubik/radon) | Complexity | Cyclomatic complexity |
+| [Safety](https://github.com/pyupio/safety) | Dependencies | Known vulnerabilities |
+
+## Configuration File
+
+The `lintaider.toml` file (created by `lintaider init`) controls AI provider and linter defaults.
 
 ## Development
+
+Clone the repo and install dependencies:
+
+```bash
+git clone https://github.com/lpozo/lintaider.git
+cd lintaider
+uv sync
+```
 
 Run tests:
 
 ```bash
 uv run pytest
-```
-
-Run a project scan:
-
-```bash
-uv run lintaider scan src
 ```

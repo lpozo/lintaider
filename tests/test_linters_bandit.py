@@ -54,7 +54,11 @@ def linter() -> BanditLinter:
             json.dumps(
                 {
                     "results": [
-                        {"test_id": "B001", "line_number": 1, "issue_severity": "HIGH"},
+                        {
+                            "test_id": "B001",
+                            "line_number": 1,
+                            "issue_severity": "HIGH",
+                        },
                         {
                             "test_id": "B002",
                             "line_number": 2,

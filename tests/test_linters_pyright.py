@@ -53,7 +53,11 @@ def linter() -> PyrightLinter:
         # Malformed JSON
         ("Error", 0, None),
         # Missing fields
-        (json.dumps({"generalDiagnostics": [{"message": "No fields"}]}), 1, "Unknown"),
+        (
+            json.dumps({"generalDiagnostics": [{"message": "No fields"}]}),
+            1,
+            "Unknown",
+        ),
     ],
 )
 @pytest.mark.asyncio
@@ -62,7 +66,9 @@ async def test_pyright_scenarios(
 ) -> None:
     """Test various Pyright parsing scenarios."""
     mock_result = AsyncCompletedProcess(stdout=stdout, stderr="", returncode=0)
-    mocker.patch.object(PyrightLinter, "_run_command", return_value=mock_result)
+    mocker.patch.object(
+        PyrightLinter, "_run_command", return_value=mock_result
+    )
 
     results = await linter.run(Path("target.py"))
 

@@ -1,7 +1,7 @@
 """LiteLLM AI provider implementation for universal model access."""
 
 import json
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import requests
 from dotenv import load_dotenv
@@ -10,6 +10,7 @@ from litellm import acompletion
 from lintaider.ai.auth import get_api_key_for_provider
 from lintaider.ai.base import AIFixProposal, BaseAIProvider
 from lintaider.ai.registry import get_provider_spec
+from lintaider.linters.context import ProjectSummary
 from lintaider.linters.result import LinterResult
 
 if TYPE_CHECKING:
@@ -38,23 +39,31 @@ class LiteLLMProvider(BaseAIProvider):
 
         Args:
             model: The name of the model to use.
-            api_base: Optional base URL for the model API (required for local/private).
+                api_base: Optional base URL for the model API (required for
+                    local/private).
             api_key: Optional API key override for cloud providers.
         """
         self.model = model
         self.api_base = api_base
         self.api_key = api_key
 
-    async def generate_fixes(self, linter_result: LinterResult) -> list[AIFixProposal]:
+    async def generate_fixes(
+        self,
+        linter_result: LinterResult,
+        project_summary: ProjectSummary | None = None,
+    ) -> list[AIFixProposal]:
         """Request fixes using LiteLLM asynchronously.
 
         Args:
             linter_result: The linter result to fix.
+            project_summary: Optional project summary for additional context.
 
         Returns:
             A list of AI-generated fix proposals.
         """
-        system_prompt, user_prompt = self._get_prompts(linter_result)
+        system_prompt, user_prompt = self._get_prompts(
+            linter_result, project_summary
+        )
 
         try:
             # LiteLLM manages API keys from environment variables automatically
@@ -114,7 +123,9 @@ def create_ai_provider(
     """
     provider_name = provider_name.lower().strip()
     provider_spec = get_provider_spec(provider_name)
-    model = model_name or (provider_spec.default_model if provider_spec else "llama3")
+    model = model_name or (
+        provider_spec.default_model if provider_spec else "llama3"
+    )
 
     # If it's a provider name (e.g. "openai"), ensure the prefix exists.
     if "/" not in model:
@@ -124,11 +135,15 @@ def create_ai_provider(
         provider_spec.default_api_base if provider_spec else None
     )
     api_key = get_api_key_for_provider(provider_name)
-    return LiteLLMProvider(model=model, api_base=resolved_api_base, api_key=api_key)
+    return LiteLLMProvider(
+        model=model, api_base=resolved_api_base, api_key=api_key
+    )
 
 
 def _resolve_base_url(
-    provider_name: str, api_base: str | None, provider_spec: "ProviderSpec | None"
+    provider_name: str,
+    api_base: str | None,
+    provider_spec: "ProviderSpec | None",
 ) -> str | None:
     """Resolve the effective API base URL for a provider.
 
@@ -143,7 +158,9 @@ def _resolve_base_url(
     Returns:
         The resolved base URL, or ``None`` if it cannot be determined.
     """
-    base_url = api_base or (provider_spec.default_api_base if provider_spec else None)
+    base_url = api_base or (
+        provider_spec.default_api_base if provider_spec else None
+    )
     if base_url:
         return base_url
 
@@ -185,7 +202,9 @@ def _prepare_request_headers_and_params(
     return headers, params
 
 
-def _parse_openai_style_models(provider_name: str, raw_models: list) -> list[str]:
+def _parse_openai_style_models(
+    provider_name: str, raw_models: list[dict[str, Any]]
+) -> list[str]:
     """Extract model names from an OpenAI-style model list response.
 
     Used by OpenAI, Anthropic, and Gemini, which all return either a ``data``
@@ -213,7 +232,9 @@ def _parse_openai_style_models(provider_name: str, raw_models: list) -> list[str
     return sorted(set(names))
 
 
-def _parse_model_response(provider_name: str, payload: dict) -> list[str]:
+def _parse_model_response(
+    provider_name: str, payload: dict[str, Any]
+) -> list[str]:
     """Dispatch model name parsing based on provider response format.
 
     Ollama uses a ``models`` list with ``name`` fields. All other providers
@@ -229,7 +250,9 @@ def _parse_model_response(provider_name: str, payload: dict) -> list[str]:
     if provider_name == "ollama":
         models = payload.get("models", [])
         return sorted(
-            str(item.get("name", "")).strip() for item in models if item.get("name")
+            str(item.get("name", "")).strip()
+            for item in models
+            if item.get("name")
         )
 
     raw_models = payload.get("data") or payload.get("models") or []
@@ -248,8 +271,10 @@ def list_provider_models(
     to manual model entry or recommended models.
 
     Args:
-        provider_name: The provider to query (e.g., ``"ollama"``, ``"openai"``).
-        api_base: Optional base URL override (useful for self-hosted providers).
+        provider_name: The provider to query (e.g., ``"ollama"``,
+            ``"openai"``).
+        api_base: Optional base URL override (useful for self-hosted
+            providers).
         api_key: Optional API key override; falls back to environment/keyring.
 
     Returns:
@@ -264,7 +289,9 @@ def list_provider_models(
     if not base_url:
         return []
 
-    headers, params = _prepare_request_headers_and_params(provider_name, api_key)
+    headers, params = _prepare_request_headers_and_params(
+        provider_name, api_key
+    )
 
     url = f"{base_url.rstrip('/')}{provider_spec.model_list_endpoint}"
     if provider_name == "ollama" and url.endswith("/v1/api/tags"):
@@ -307,7 +334,9 @@ async def verify_provider_connection(
         when the provider responded without error.
     """
     provider_name = provider_name.lower().strip()
-    model = model_name if "/" in model_name else f"{provider_name}/{model_name}"
+    model = (
+        model_name if "/" in model_name else f"{provider_name}/{model_name}"
+    )
 
     try:
         await acompletion(

@@ -23,8 +23,6 @@ class SemgrepLinter(BaseLinter):
             A list of command arguments.
         """
         return [
-            "uv",
-            "run",
             "semgrep",
             "scan",
             "--config",

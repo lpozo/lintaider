@@ -20,15 +20,20 @@ class PylintLinter(BaseLinter):
             target: The file or directory to scan.
 
         Returns:
-            A list of command arguments.
+            A list of command arguments including output format and config.
         """
-        return [
-            "uv",
-            "run",
-            "pylint",
-            "--output-format=json",
-            str(target.absolute()),
-        ]
+        # Get effective config (nearest local or bundled default)
+        config_file = self._get_effective_config_path(
+            target, [".pylintrc", "pylintrc", "pyproject.toml"]
+        )
+
+        cmd = ["pylint", "--output-format=json"]
+        if config_file:
+            # If it's pyproject.toml, it might need different handling,
+            # but usually Pylint finds it or we pass it via --rcfile.
+            cmd += [f"--rcfile={config_file.absolute()}"]
+
+        return cmd + [str(target.absolute())]
 
     def parse_output(
         self,
@@ -59,7 +64,9 @@ class PylintLinter(BaseLinter):
             line_end = error.get("endLine")
             col_end = error.get("endColumn")
 
-            error_code = error.get("message-id", error.get("symbol", "Unknown"))
+            error_code = error.get(
+                "message-id", error.get("symbol", "Unknown")
+            )
             message = error.get("message", "Unknown error")
 
             raw_snippet, snippet_start, semantic_info = get_linter_context(

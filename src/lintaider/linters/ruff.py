@@ -20,16 +20,18 @@ class RuffLinter(BaseLinter):
             target: The file or directory to scan.
 
         Returns:
-            A list of command arguments.
+            A list of command arguments including output format and config.
         """
-        return [
-            "uv",
-            "run",
-            "ruff",
-            "check",
-            "--output-format=json",
-            str(target.absolute()),
-        ]
+        # Get effective config (nearest local or bundled default)
+        config_file = self._get_effective_config_path(
+            target, ["pyproject.toml", "ruff.toml", ".ruff.toml"]
+        )
+
+        cmd = ["ruff", "check", "--output-format=json"]
+        if config_file:
+            cmd += ["--config", str(config_file.absolute())]
+
+        return cmd + [str(target.absolute())]
 
     def parse_output(
         self,

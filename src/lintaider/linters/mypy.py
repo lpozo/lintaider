@@ -23,8 +23,6 @@ class MyPyLinter(BaseLinter):
             A list of command arguments.
         """
         return [
-            "uv",
-            "run",
             "mypy",
             "--show-column-numbers",
             "--show-error-codes",

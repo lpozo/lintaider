@@ -1,6 +1,7 @@
 """Engine to orchestrate multiple linters."""
 
 import asyncio
+from collections.abc import Callable
 from pathlib import Path
 
 from lintaider.linters.base import BaseLinter
@@ -20,7 +21,9 @@ class Engine:
         """
         self.linters = linters
 
-    async def run_all(self, target: Path, progress_callback=None) -> list[LinterResult]:
+    async def run_all(
+        self, target: Path, progress_callback: Callable[[], None] | None = None
+    ) -> list[LinterResult]:
         """Run all configured linters on the target in parallel using asyncio.
 
         Args:
@@ -32,7 +35,9 @@ class Engine:
         """
         all_results: list[LinterResult] = []
 
-        tasks = [asyncio.create_task(linter.run(target)) for linter in self.linters]
+        tasks = [
+            asyncio.create_task(linter.run(target)) for linter in self.linters
+        ]
 
         for coro in asyncio.as_completed(tasks):
             try:

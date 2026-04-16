@@ -4,6 +4,7 @@ import asyncio
 import difflib
 import json
 from pathlib import Path
+from typing import Any
 
 import click
 from rich.panel import Panel
@@ -13,7 +14,11 @@ from lintaider.ai import AIFixProposal, create_ai_provider
 from lintaider.cli.scan_handler import handle_scan
 from lintaider.cli.ui import console
 from lintaider.config import Config
-from lintaider.linters.context import format_snippet
+from lintaider.linters.context import (
+    ProjectScanner,
+    ProjectSummary,
+    SnippetProvider,
+)
 from lintaider.linters.result import LinterResult
 
 
@@ -32,38 +37,18 @@ async def handle_fix(
         target: Optional file or directory to auto-scan when ``input_file``
             is missing.
     """
-    if not input_file.exists():
-        if target:
-            console.print(
-                f"[yellow]{input_file} not found. "
-                f"Starting automatic scan of {target}...[/yellow]"
-            )
-            await handle_scan(target, only=None, skip=None, output=input_file)
-        else:
-            console.print(
-                f"[bold red]Error:[/bold red] {input_file} not found.\n"
-                "Please provide a target to scan: [bold]lintaider fix <target>[/bold]"
-            )
-            return
-
-    try:
-        data = json.loads(input_file.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
-        console.print(f"[bold red]Error reading {input_file}:[/bold red] {exc}")
-        return
-
-    results = [LinterResult.from_dict(item) for item in data]
-
+    results = await _load_scan_results(input_file, target)
     if not results:
-        console.print("[bold green]No issues to fix.[/bold green]")
         return
 
     config = Config.load()
     console.print(
-        f"[bold blue]Loaded {len(results)} issues from {input_file}[/bold blue]"
+        f"[bold blue]Loaded {len(results)} issues from "
+        f"{input_file}[/bold blue]"
     )
     console.print(
-        f"[dim]Using configured provider: {config.provider}:{config.model}[/dim]"
+        f"[dim]Using configured provider: "
+        f"{config.provider}:{config.model}[/dim]"
     )
 
     try:
@@ -75,22 +60,96 @@ async def handle_fix(
     # Logical Sort: by file then line
     results.sort(key=lambda r: (str(r.file_path), r.line_start))
 
-    # Background AI Task Orchestration with Rate Limiting
+    # Determine target path for context summary
+    target_path = target or Path.cwd()
+    with console.status(
+        "[dim]Analyzing project context...[/dim]", spinner="dots"
+    ):
+        project_summary = ProjectScanner.scan_project(target_path)
+
+    # Launch AI tasks background orchestration
+    ai_tasks = _orchestrate_ai_tasks(ai, results, project_summary)
+
+    for idx, result in enumerate(results):
+        await _process_fix_interactive(
+            idx, len(results), result, ai_tasks[idx]
+        )
+
+
+async def _load_scan_results(
+    input_file: Path, target: Path | None
+) -> list[LinterResult]:
+    """Load scan results from disk, auto-scanning if the file is missing.
+
+    Args:
+        input_file: Path to the JSON results file produced by
+            ``lintaider scan``.
+        target: Optional file or directory to scan when
+            ``input_file`` is absent.
+
+    Returns:
+        A list of ``LinterResult`` objects, or an empty list on any failure.
+    """
+    if not input_file.exists():
+        if target:
+            console.print(
+                f"[yellow]{input_file} not found. "
+                f"Starting automatic scan of {target}...[/yellow]"
+            )
+            await handle_scan(target, only=None, skip=None, output=input_file)
+        else:
+            console.print(
+                f"[bold red]Error:[/bold red] {input_file} not found.\n"
+                "Please provide a target to scan: "
+                "[bold]lintaider fix <target>[/bold]"
+            )
+            return []
+
+    try:
+        data = json.loads(input_file.read_text(encoding="utf-8"))
+        results: list[LinterResult] = [
+            LinterResult.from_dict(item) for item in data
+        ]
+        if not results:
+            console.print("[bold green]No issues to fix.[/bold green]")
+            return []
+        return results
+    except (OSError, json.JSONDecodeError) as exc:
+        console.print(
+            f"[bold red]Error reading {input_file}:[/bold red] {exc}"
+        )
+        return []
+
+
+def _orchestrate_ai_tasks(
+    ai: Any, results: list[LinterResult], project_summary: ProjectSummary
+) -> list[asyncio.Task[list[AIFixProposal]]]:
+    """Launch concurrent AI fix-generation tasks, rate-limited by a semaphore.
+
+    Args:
+        ai: The active AI provider instance.
+        results: All linter results to generate fixes for.
+        project_summary: Project-wide context passed to each AI call.
+
+    Returns:
+        A list of asyncio tasks, one per result, each resolving to a list
+        of ``AIFixProposal`` objects.
+    """
+    # Background AI Task Orchestration with Semaphore to avoid overloading
     ai_semaphore = asyncio.Semaphore(1)
 
-    async def _wrapped_generate_fixes(res: LinterResult) -> list[AIFixProposal]:
+    async def _wrapped_generate_fixes(
+        res: LinterResult, summary: ProjectSummary
+    ) -> list[AIFixProposal]:
         async with ai_semaphore:
-            fixes = await ai.generate_fixes(res)
+            fixes: list[AIFixProposal] = await ai.generate_fixes(res, summary)
             await asyncio.sleep(0.5)
             return fixes
 
-    # Launch all AI tasks immediately in the background
-    ai_tasks = [
-        asyncio.create_task(_wrapped_generate_fixes(result)) for result in results
+    return [
+        asyncio.create_task(_wrapped_generate_fixes(result, project_summary))
+        for result in results
     ]
-
-    for idx, result in enumerate(results):
-        await _process_fix_interactive(idx, len(results), result, ai_tasks[idx])
 
 
 async def _process_fix_interactive(
@@ -122,25 +181,37 @@ async def _process_fix_interactive(
     )
 
     if result.snippet_context:
-        formatted = format_snippet(result.snippet_context, result.snippet_start_line)
-        syntax = Syntax(formatted, "python", theme="monokai", line_numbers=False)
-        console.print(Panel(syntax, title="Original Context", border_style="yellow"))
+        formatted = SnippetProvider.format(
+            result.snippet_context, result.snippet_start_line
+        )
+        syntax = Syntax(
+            formatted, "python", theme="monokai", line_numbers=False
+        )
+        console.print(
+            Panel(syntax, title="Original Context", border_style="yellow")
+        )
 
-    with console.status("[dim]Asking AI for a solution...[/dim]", spinner="dots"):
+    with console.status(
+        "[dim]Asking AI for a solution...[/dim]", spinner="dots"
+    ):
         proposals = await ai_task
 
     if not proposals:
-        console.print("[red]AI failed to generate solutions for this issue.[/red]")
+        console.print(
+            "[red]AI failed to generate solutions for this issue.[/red]"
+        )
         return
 
     for i, prop in enumerate(proposals, start=1):
-        syntax = Syntax(prop.code_diff, "python", theme="monokai", line_numbers=False)
+        console.print(f"\n[bold green]Option {i}:[/bold green]")
         console.print(
-            Panel(
-                syntax,
-                title=f"Option {i}: {prop.explanation}",
-                border_style="green",
-            )
+            Panel(prop.explanation, border_style="dim", title="AI Reasoning")
+        )
+        syntax = Syntax(
+            prop.code_diff, "python", theme="monokai", line_numbers=False
+        )
+        console.print(
+            Panel(syntax, title="Proposed Fix", border_style="green")
         )
 
     choice = await asyncio.to_thread(
@@ -165,7 +236,9 @@ async def _process_fix_interactive(
             selected.code_diff,
         )
         if applied:
-            console.print("[bold green]Patch applied successfully![/bold green]\n")
+            console.print(
+                "[bold green]Patch applied successfully![/bold green]\n"
+            )
         else:
             console.print(
                 "[bold yellow]Could not apply patch accurately. "
@@ -218,7 +291,9 @@ def _apply_patch(
             search_start_line = max(0, start_idx - window_lines)
             search_end_line = min(len(lines), end_idx + window_lines)
 
-            search_start_char = content.find("\n".join(lines[:search_start_line]))
+            search_start_char = content.find(
+                "\n".join(lines[:search_start_line])
+            )
             if search_start_char == -1:
                 search_start_char = 0
             search_end_char = content.find("\n".join(lines[:search_end_line]))
@@ -235,7 +310,9 @@ def _apply_patch(
             )
 
             if match.size < len(target_snippet) * 0.7:
-                matcher = difflib.SequenceMatcher(None, content, target_snippet)
+                matcher = difflib.SequenceMatcher(
+                    None, content, target_snippet
+                )
                 match = matcher.find_longest_match(
                     0, len(content), 0, len(target_snippet)
                 )

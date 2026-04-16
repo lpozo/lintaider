@@ -109,7 +109,12 @@ def linter() -> RadonLinter:
 )
 @pytest.mark.asyncio
 async def test_radon_scenarios(
-    mocker, linter, stdout, expected_count, first_error_code, first_name_fragment
+    mocker,
+    linter,
+    stdout,
+    expected_count,
+    first_error_code,
+    first_name_fragment,
 ) -> None:
     """Test various Radon parsing scenarios."""
     mock_result = AsyncCompletedProcess(stdout=stdout, stderr="", returncode=0)

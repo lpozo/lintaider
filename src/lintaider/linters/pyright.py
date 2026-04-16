@@ -22,7 +22,7 @@ class PyrightLinter(BaseLinter):
         Returns:
             A list of command arguments.
         """
-        return ["uv", "run", "pyright", "--outputjson", str(target.absolute())]
+        return ["pyright", "--outputjson", str(target.absolute())]
 
     def parse_output(
         self,
@@ -50,10 +50,16 @@ class PyrightLinter(BaseLinter):
             file_path = Path(diag.get("file", str(target)))
 
             # Pyright is 0-indexed, normalizing to 1-indexed for LinterResult
-            line_start = diag.get("range", {}).get("start", {}).get("line", 0) + 1
-            col_start = diag.get("range", {}).get("start", {}).get("character", 0) + 1
+            line_start = (
+                diag.get("range", {}).get("start", {}).get("line", 0) + 1
+            )
+            col_start = (
+                diag.get("range", {}).get("start", {}).get("character", 0) + 1
+            )
             line_end = diag.get("range", {}).get("end", {}).get("line", 0) + 1
-            col_end = diag.get("range", {}).get("end", {}).get("character", 0) + 1
+            col_end = (
+                diag.get("range", {}).get("end", {}).get("character", 0) + 1
+            )
 
             error_code = diag.get("rule", "Unknown")
             severity = diag.get("severity", "error").upper()

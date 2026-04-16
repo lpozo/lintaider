@@ -3,7 +3,6 @@
 import json
 from collections import Counter
 from pathlib import Path
-from typing import cast
 
 from rich.panel import Panel
 from rich.progress import (
@@ -15,9 +14,10 @@ from rich.progress import (
 )
 from rich.table import Table
 
-from lintaider.cli.ui import HUMAN_READABLE_REPORT_FILE, console
+from lintaider.cli.ui import HUMAN_READABLE_REPORT_FILE
+from lintaider.cli.ui import console as console
 from lintaider.config import Config
-from lintaider.linters import LINTER_MAP, BaseLinter, Engine
+from lintaider.linters import LINTER_MAP, Engine
 from lintaider.linters.result import LinterResult
 
 
@@ -51,10 +51,8 @@ async def handle_scan(  # pylint: disable=too-many-arguments,too-many-positional
     config = Config.load()
     active_linters = _get_active_linters(config, only, skip)
 
-    # Use cast to satisfy MyPy that we are not instantiating the abstract BaseLinter
-    engine = Engine(
-        linters=[cast(type[BaseLinter], LINTER_MAP[name])() for name in active_linters]
-    )
+    # Use the linter mapping to instantiate the active linters
+    engine = Engine(linters=[LINTER_MAP[name]() for name in active_linters])
 
     with Progress(
         SpinnerColumn(),
@@ -67,7 +65,7 @@ async def handle_scan(  # pylint: disable=too-many-arguments,too-many-positional
             "[cyan]Running linters...", total=len(active_linters)
         )
 
-        def progress_cb():
+        def progress_cb() -> None:
             progress.update(task_id, advance=1)
 
         results = await engine.run_all(target, progress_callback=progress_cb)
@@ -78,84 +76,13 @@ async def handle_scan(  # pylint: disable=too-many-arguments,too-many-positional
     if not results:
         console.print("[bold green]No issues found! 🎉[/bold green]")
 
+    reporter = ScanReporter(results, target, output)
     if results:
-        _print_scan_summary(results, verbose)
-
-    # Always serialize to JSON to keep output behavior deterministic.
-    output.write_text(
-        json.dumps([r.to_dict() for r in results], indent=2), encoding="utf-8"
-    )
-    console.print(f"\n[bold green]Results saved to {output}[/bold green]")
-
+        reporter.write_summary_report(verbose=verbose)
+    reporter.write_json_report()
     if human_readable:
-        report_markdown = _build_markdown_report(target, results)
-        HUMAN_READABLE_REPORT_FILE.write_text(report_markdown, encoding="utf-8")
-        console.print(
-            "[bold green]Human-readable report saved to "
-            f"{HUMAN_READABLE_REPORT_FILE}[/bold green]"
-        )
-
-    console.print(
-        "[dim]Run 'lintaider fix' to get AI suggestions and apply patches.[/dim]"
-    )
-
-
-def _build_markdown_report(target: Path, results: list[LinterResult]) -> str:
-    """Build a markdown linting report from linter results.
-
-    Args:
-        target: The file or directory that was scanned.
-        results: Sorted list of linter results.
-
-    Returns:
-        A markdown string suitable for human-readable sharing.
-    """
-    counts: Counter[str] = Counter(r.linter_name for r in results)
-    lines: list[str] = [
-        "# Linting Report",
-        "",
-        f"- Target: `{target}`",
-        f"- Total issues: **{len(results)}**",
-        "",
-        "## Summary",
-        "",
-        "| Linter | Issues |",
-        "| --- | ---: |",
-    ]
-
-    if counts:
-        for linter, count in sorted(counts.items()):
-            lines.append(f"| {linter} | {count} |")
-    else:
-        lines.append("| None | 0 |")
-
-    lines.extend(["", "## Findings", ""])
-
-    if not results:
-        lines.append("No issues found.")
-        lines.append("")
-        return "\n".join(lines)
-
-    for idx, result in enumerate(results, start=1):
-        location = f"{result.file_path}:{result.line_start}"
-        if result.col_start is not None:
-            location += f":{result.col_start}"
-
-        lines.extend(
-            [
-                f"### {idx}. {result.linter_name} [{result.error_code}]",
-                "",
-                f"- Location: `{location}`",
-                f"- Message: {result.message}",
-            ]
-        )
-
-        if result.snippet_context:
-            lines.extend(["", "```python", result.snippet_context, "```"])
-
-        lines.append("")
-
-    return "\n".join(lines)
+        reporter.write_human_readable_report()
+    reporter.print_fix_hint()
 
 
 def _parse_linter_names(names: str | None, default: list[str]) -> list[str]:
@@ -196,45 +123,139 @@ def _get_active_linters(
     if only_list:
         active_linters = [name for name in active_linters if name in only_list]
     if skip_list:
-        active_linters = [name for name in active_linters if name not in skip_list]
+        active_linters = [
+            name for name in active_linters if name not in skip_list
+        ]
     return active_linters
 
 
-def _print_scan_summary(results: list[LinterResult], verbose: bool) -> None:
-    """Print a findings summary table, and detailed panels when verbose.
+class ScanReporter:
+    """Encapsulate scan reporting for console and file outputs."""
 
-    Args:
-        results: The list of linter results to display.
-        verbose: When ``True``, prints a rich panel for each individual issue
-            including the code snippet context.
-    """
-    counts: Counter[str] = Counter(r.linter_name for r in results)
+    def __init__(
+        self,
+        results: list[LinterResult],
+        target: Path,
+        output: Path,
+    ) -> None:
+        """Initialize reporter with scan results and output paths.
 
-    table = Table(title="[bold red]Findings Summary[/bold red]")
-    table.add_column("Linter", style="cyan", no_wrap=True)
-    table.add_column("Issues Found", justify="right", style="magenta")
+        Args:
+            results: Sorted linter results.
+            target: The scanned file or directory.
+            output: Path to the JSON results file.
+        """
+        self.results = results
+        self.target = target
+        self.output = output
 
-    for linter, count in sorted(counts.items()):
-        table.add_row(linter, str(count))
+    def write_json_report(self) -> None:
+        """Write scan results as deterministic JSON output."""
+        self.output.write_text(
+            json.dumps([r.to_dict() for r in self.results], indent=2),
+            encoding="utf-8",
+        )
+        console.print(
+            f"\n[bold green]Results saved to {self.output}[/bold green]"
+        )
 
-    console.print(table)
+    def write_human_readable_report(self) -> None:
+        """Write a markdown report for human-readable sharing."""
+        report_markdown = self._build_markdown_report()
+        HUMAN_READABLE_REPORT_FILE.write_text(
+            report_markdown, encoding="utf-8"
+        )
+        console.print(
+            "[bold green]Human-readable report saved to "
+            f"{HUMAN_READABLE_REPORT_FILE}[/bold green]"
+        )
 
-    if verbose:
-        for idx, result in enumerate(results):
+    def _build_markdown_report(self) -> str:
+        """Build a markdown linting report from the current scan results."""
+        counts: Counter[str] = Counter(r.linter_name for r in self.results)
+        lines: list[str] = [
+            "# Linting Report",
+            "",
+            f"- Target: `{self.target}`",
+            f"- Total issues: **{len(self.results)}**",
+            "",
+            "## Summary",
+            "",
+            "| Linter | Issues |",
+            "| --- | ---: |",
+        ]
+
+        if counts:
+            for linter, count in sorted(counts.items()):
+                lines.append(f"| {linter} | {count} |")
+        else:
+            lines.append("| None | 0 |")
+
+        lines.extend(["", "## Findings", ""])
+
+        if not self.results:
+            lines.append("No issues found.")
+            lines.append("")
+            return "\n".join(lines)
+
+        for idx, result in enumerate(self.results, start=1):
             location = f"{result.file_path}:{result.line_start}"
             if result.col_start is not None:
                 location += f":{result.col_start}"
-            console.print(
-                Panel(
-                    f"[bold]{result.linter_name}[/bold] [{result.error_code}] "
-                    f"[yellow]{location}[/yellow]\n\n"
-                    f"{result.message}"
-                    + (
-                        f"\n\n[dim]{result.snippet_context}[/dim]"
-                        if result.snippet_context
-                        else ""
-                    ),
-                    title=f"Issue {idx + 1}/{len(results)}",
-                    border_style="red",
-                )
+
+            lines.extend(
+                [
+                    f"### {idx}. {result.linter_name} [{result.error_code}]",
+                    "",
+                    f"- Location: `{location}`",
+                    f"- Message: {result.message}",
+                ]
             )
+
+            if result.snippet_context:
+                lines.extend(["", "```python", result.snippet_context, "```"])
+
+            lines.append("")
+
+        return "\n".join(lines)
+
+    def print_fix_hint(self) -> None:
+        """Print the next-step hint for AI-assisted fixing."""
+        console.print(
+            "[dim]Run 'lintaider fix' to get AI suggestions "
+            "and apply patches.[/dim]"
+        )
+
+    def write_summary_report(self, *, verbose: bool = False) -> None:
+        """Print a findings summary table and optional verbose details."""
+        counts: Counter[str] = Counter(r.linter_name for r in self.results)
+
+        table = Table(title="[bold red]Findings Summary[/bold red]")
+        table.add_column("Linter", style="cyan", no_wrap=True)
+        table.add_column("Issues Found", justify="right", style="magenta")
+
+        for linter, count in sorted(counts.items()):
+            table.add_row(linter, str(count))
+
+        console.print(table)
+
+        if verbose:
+            for idx, result in enumerate(self.results):
+                location = f"{result.file_path}:{result.line_start}"
+                if result.col_start is not None:
+                    location += f":{result.col_start}"
+                console.print(
+                    Panel(
+                        f"[bold]{result.linter_name}[/bold] "
+                        f"[{result.error_code}] "
+                        f"[yellow]{location}[/yellow]\n\n"
+                        f"{result.message}"
+                        + (
+                            f"\n\n[dim]{result.snippet_context}[/dim]"
+                            if result.snippet_context
+                            else ""
+                        ),
+                        title=f"Issue {idx + 1}/{len(self.results)}",
+                        border_style="red",
+                    )
+                )

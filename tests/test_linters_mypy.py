@@ -27,7 +27,11 @@ def linter() -> MyPyLinter:
     "stdout, expected_count, first_error_code",
     [
         # Standard error matching
-        ("test.py:1:5: error: Incompatible types [assignment]\n", 1, "assignment"),
+        (
+            "test.py:1:5: error: Incompatible types [assignment]\n",
+            1,
+            "assignment",
+        ),
         # Multiple errors
         (
             "file1.py:10:1: error: Error 1 [err1]\n"
